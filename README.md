@@ -23,12 +23,12 @@ T3 remains responsible for its own permissions. A bridge connection must never t
 
 ## Development
 
-The scaffold uses Node.js 24, npm, and TypeScript.
+The scaffold uses Node.js 24, pnpm 11.18.0, and TypeScript. The pnpm version is pinned in `package.json`; see the [pnpm installation guide](https://pnpm.io/installation) if it is not installed.
 
 ```sh
-npm ci
-npm run check
-npm run build
+pnpm install --frozen-lockfile
+pnpm run check
+pnpm run build
 ```
 
 These commands check and compile the TypeScript scaffold. Automated tests and an application start command will be added with the implementation.

@@ -5,6 +5,7 @@
   "description": "Connect multiple T3 Code MCP servers through one authenticated endpoint.",
   "license": "MIT",
   "type": "module",
+  "packageManager": "pnpm@11.18.0",
   "engines": {
     "node": ">=24"
   },

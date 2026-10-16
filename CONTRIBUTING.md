@@ -4,7 +4,7 @@ The project is currently a scaffold. Open an issue to discuss a bug or a propose
 
 ## Local development
 
-Use Node.js 24 and npm. Install the locked dependencies with `npm ci`, then run `npm run check` and `npm run build`.
+Use Node.js 24 and pnpm 11.18.0, as pinned in `package.json`. Install the locked dependencies with `pnpm install --frozen-lockfile`, then run `pnpm run check` and `pnpm run build`. Commit dependency changes in `pnpm-lock.yaml`.
 
 There are no automated application tests yet. When adding behavior, include focused tests that exercise observable outcomes. Use synthetic fixtures and disposable local state.
 
