@@ -1,0 +1,42 @@
+# Dependencies and generated output
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+
+# Local configuration and credentials
+.env
+.env.*
+!.env.example
+config.json
+config.*.json
+!config.example.json
+*.env
+.npmrc
+credentials/
+secrets/
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Runtime state, backups, logs, and packaged artifacts
+state/
+data/
+backups/
+*.sqlite*
+*.db
+*.db-*
+*.log
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+
+# Machine and editor files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo

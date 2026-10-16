@@ -1,0 +1,25 @@
+{
+  "name": "t3-bridge",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Connect multiple T3 Code MCP servers through one authenticated endpoint.",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "check": "tsc -p tsconfig.json --noEmit"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/redxzeta/t3-bridge.git"
+  },
+  "bugs": {
+    "url": "https://github.com/redxzeta/t3-bridge/issues"
+  },
+  "devDependencies": {
+    "typescript": "5.9.3"
+  }
+}

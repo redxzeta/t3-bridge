@@ -1,0 +1,15 @@
+{
+  "publicUrl": "https://bridge.example.com",
+  "listenPort": 8787,
+  "ownerEmail": "owner@example.com",
+  "upstreams": [
+    {
+      "name": "home",
+      "url": "https://t3-one.example.com/mcp"
+    },
+    {
+      "name": "lab",
+      "url": "https://t3-two.example.com/mcp"
+    }
+  ]
+}
