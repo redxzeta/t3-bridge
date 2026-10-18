@@ -40,3 +40,26 @@ Thumbs.db
 .vscode/
 *.swp
 *.swo
+
+# Local diagnostics, scans, and deployment material
+scanner-reports/
+reports/
+*.sarif
+gitleaks*.json
+*audit*.json
+*scan-report*
+security_best_practices_report.md
+deploy/
+plugin/
+*.dump
+*.bak
+*.db-journal
+.oauth/
+oauth-state/
+oauth*.json
+*credentials*.json
+*tokens*.json
+gitleaks*.txt
+*scan*.json
+*.log.*
+*.tar.zst

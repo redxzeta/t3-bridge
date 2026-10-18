@@ -1,6 +1,8 @@
 # Security
 
-T3 Bridge is currently a scaffold and has no released runtime. It should not be treated as a completed or audited security product.
+T3 Bridge uses a single local owner account, downstream OAuth, and separate upstream OAuth grants. It has not undergone an independent security audit. T3 retains responsibility for its own read/write permissions and operation approvals.
+
+Keep the bridge loopback-bound behind a public HTTPS endpoint. Plain HTTP upstreams are a trusted-network choice: bearer tokens and tool data are unencrypted on that network. See [the setup guide](docs/setup.md) for credential handling and authorization boundaries.
 
 ## Report a vulnerability
 

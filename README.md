@@ -1,46 +1,40 @@
 # T3 Bridge
 
-Connect multiple T3 Code MCP servers through one authenticated endpoint.
+Connect multiple T3 Code MCP servers through one authenticated endpoint. Tools keep an instance prefix, such as `home__list_projects` or `lab__list_projects`.
 
-T3 Bridge is intended for people who run more than one T3 Code environment and want one MCP connection for clients such as ChatGPT. Each instance's tools will have a distinct prefix so clients can tell them apart.
+T3 Bridge is a single-user application: one configured password account, downstream OAuth for MCP clients, and separate upstream OAuth grants with PKCE. SQLite persists accounts, grants, and upstream tokens. T3 remains responsible for read/write permissions and approval of operations.
 
-## Project status
+## Install and connect
 
-This repository contains the initial project scaffold. The gateway implementation and installation tooling have not been migrated yet. There is no runnable bridge or installer in this revision.
+Use Node.js 24 and pnpm 12.14.0 on Linux or macOS. Windows uses WSL2 and the Linux instructions. The primary compiler is the experimental [tsc-ts 0.0.2](https://github.com/vercel-labs/tsc-ts); installation needs its matching optional native package. There is no source-build toolchain or fallback compiler.
 
-T3 Bridge is an independent community project and is not affiliated with or endorsed by T3 Code, OpenAI, or ngrok.
+```sh
+git clone https://github.com/redxzeta/t3-bridge.git
+cd t3-bridge
+pnpm install --frozen-lockfile
+pnpm run check
+pnpm run build
+cp examples/config.example.json config.json
+# Edit config.json with your public HTTPS origin, owner email, and upstreams.
+pnpm run setup
+pnpm start
+```
 
-## Intended scope
+Save the password shown by setup in your password manager. Setup and password rotation require an interactive terminal; do not redirect or record their output.
 
-- One authenticated MCP endpoint for multiple T3 Code environments.
-- Separate OAuth authorization for each upstream instance.
-- Instance prefixes on tool names to avoid collisions.
-- One owner account, configured through a file.
-- Persistent OAuth credentials stored outside the repository.
-- Deployment behind a stable HTTPS endpoint, including ngrok.
-
-T3 remains responsible for its own permissions. A bridge connection must never turn a read-only T3 grant into write access. Each upstream must explicitly approve the actions its tools perform.
+Continue with the complete [setup guide](docs/setup.md) to start ngrok, authorize each upstream, and connect your MCP client. It also covers platform prerequisites, optional Linux systemd operation, Proxmox, restart, and troubleshooting.
 
 ## Development
-
-The scaffold uses Node.js 24, pnpm 11.18.0, and TypeScript. The pnpm version is pinned in `package.json`; see the [pnpm installation guide](https://pnpm.io/installation) if it is not installed.
 
 ```sh
 pnpm install --frozen-lockfile
 pnpm run check
 pnpm run build
+pnpm test
 ```
 
-These commands check and compile the TypeScript scaffold. Automated tests and an application start command will be added with the implementation.
+Tests use synthetic accounts, disposable state, and local mock upstreams. See [CONTRIBUTING.md](CONTRIBUTING.md) for publication checks and [SECURITY.md](SECURITY.md) for private vulnerability reporting.
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidance and [SECURITY.md](SECURITY.md) for reporting vulnerabilities.
+Manual Linux and macOS installation is documented; Windows support is through WSL2. Platform execution results are recorded in the migration PR. Native Windows, automatic container provisioning, Docker packaging, a management UI, additional login providers, package releases, and automated deployment are deferred. npm publishing is disabled.
 
-## Configuration example
-
-[examples/config.example.json](examples/config.example.json) illustrates the intended configuration using documentation-only hostnames and an example email. It is a design example; the scaffold does not load it yet.
-
-Use local configuration files for real addresses. Keep passwords, ngrok tokens, OAuth credentials, signing keys, databases, and authorization URLs out of commits and issue reports. The repository's ignore rules exclude common local configuration and state files, but they do not replace reviewing a diff before publishing it.
-
-## License
-
-[MIT](LICENSE).
+T3 Bridge is an independent community project, unaffiliated with T3 Code, OpenAI, or ngrok. Licensed under [MIT](LICENSE).

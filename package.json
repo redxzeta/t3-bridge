@@ -1,17 +1,22 @@
 {
   "name": "t3-bridge",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "private": true,
   "description": "Connect multiple T3 Code MCP servers through one authenticated endpoint.",
   "license": "MIT",
   "type": "module",
-  "packageManager": "pnpm@11.18.0",
+  "packageManager": "pnpm@12.14.0",
   "engines": {
-    "node": ">=24"
+    "node": ">=24 <25"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.json",
-    "check": "tsc -p tsconfig.json --noEmit"
+    "build": "tsc-ts -p tsconfig.json && esbuild src/browser.ts --bundle --format=esm --minify --outfile=dist/browser.js",
+    "check": "tsc-ts -p tsconfig.json --noEmit",
+    "test": "node --test dist/*.test.js",
+    "setup": "node --env-file-if-exists=.env dist/main.js setup",
+    "start": "node --env-file-if-exists=.env dist/main.js start",
+    "link": "node --env-file-if-exists=.env dist/main.js link",
+    "rotate-password": "node --env-file-if-exists=.env dist/main.js rotate-password"
   },
   "repository": {
     "type": "git",
@@ -21,6 +26,19 @@
     "url": "https://github.com/redxzeta/t3-bridge/issues"
   },
   "devDependencies": {
-    "typescript": "5.9.3"
+    "@types/better-sqlite3": "7.6.13",
+    "@types/node": "24.9.1",
+    "esbuild": "0.25.12",
+    "tsc-ts": "0.0.2"
+  },
+  "dependencies": {
+    "@better-auth/cimd": "1.7.7",
+    "@better-auth/mcp": "1.7.7",
+    "@better-auth/oauth-provider": "1.7.7",
+    "@modelcontextprotocol/client": "2.3.1",
+    "@modelcontextprotocol/server": "2.3.1",
+    "better-auth": "1.7.7",
+    "better-sqlite3": "12.4.1",
+    "zod": "4.1.12"
   }
 }
