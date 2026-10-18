@@ -73,7 +73,11 @@ export function createBridge(config: BridgeConfig, db: State) {
       for (const [key, value] of Object.entries(req.headers)) if (value) headers.set(key, Array.isArray(value) ? value.join(", ") : value);
       const request = new Request(url, { method, headers, body: method === "GET" || method === "HEAD" ? undefined : Readable.toWeb(req) as ReadableStream, duplex: "half" } as RequestInit & { duplex: "half" });
       const response = await handle(request);
-      res.writeHead(response.status, Object.fromEntries(response.headers));
+      const responseHeaders: Record<string, string | string[]> = Object.fromEntries(response.headers);
+      const cookies = response.headers.getSetCookie();
+      // Set-Cookie fields cannot be folded into one comma-separated header.
+      if (cookies.length) responseHeaders["set-cookie"] = cookies;
+      res.writeHead(response.status, responseHeaders);
       if (response.body) Readable.fromWeb(response.body as import("node:stream/web").ReadableStream).pipe(res);
       else res.end();
     } catch (error) {
