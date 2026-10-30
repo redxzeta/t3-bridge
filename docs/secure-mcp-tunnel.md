@@ -81,7 +81,7 @@ Keep upstream names, URLs, client registrations, and tokens intact where compati
 
 ## Service operation after compatibility proof
 
-Use the existing host service manager. The following is a synthetic systemd example, **not an instruction to activate before authentication proof**. Adapt paths, user, free health port, and the private environment file on the actual guest. The environment file contains `CONTROL_PLANE_TUNNEL_ID` and any verified discovery trust settings, not a literal API key.
+Use the existing host service manager. The following is a synthetic systemd example, **not an instruction to activate before authentication proof**. Adapt paths, user, free health port, and the private environment file on the actual guest. The environment file contains `CONTROL_PLANE_TUNNEL_ID`, `CONTROL_PLANE_ORGANIZATION_ID` for the associated Platform organization, and any verified discovery trust settings, not a literal API key. Compare the tunnel identifier with the current Platform detail page before diagnosing an access denial as a missing role.
 
 ```ini
 [Unit]
@@ -96,7 +96,7 @@ Type=simple
 User=bridge
 EnvironmentFile=/etc/t3-bridge/tunnel.env
 LoadCredential=control-plane-key:/etc/t3-bridge/control-plane-key
-ExecStart=/usr/local/bin/tunnel-client run --mcp.server-url http://127.0.0.1:8787/mcp --control-plane.api-key=file:%d/control-plane-key --health.listen-addr 127.0.0.1:8080 --log.level warn
+ExecStart=/usr/local/bin/tunnel-client run --mcp.server-url http://127.0.0.1:8787/mcp --control-plane.api-key=file:%d/control-plane-key --health.listen-addr 127.0.0.1:8080 --log.format json --log.level warn
 UMask=0077
 Restart=on-failure
 RestartSec=15
