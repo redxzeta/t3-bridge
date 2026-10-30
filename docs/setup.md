@@ -83,7 +83,7 @@ Run one command, open its printed URL in your browser, complete the T3 login/con
 
 The browser opens the upstream's HTTP/HTTPS origin and then returns to `https://bridge.example.com/upstream/callback/<instance>`. The browser must reach both origins, and ngrok must forward that public callback to the running bridge. A LAN upstream need not be publicly exposed. A browser on another network may need access to that LAN.
 
-Each upstream has its own registered client, state, PKCE verifier, access token, and refresh token. Linking an instance again replaces its pending state and clears its prior tokens; complete the newest authorization URL. Tokens persist across restarts. Changing an authorized instance's name or URL requires reviewing its old grant and authorizing the new configuration.
+Each upstream has its own registered client, state, PKCE verifier, access token, and refresh token. Linking an instance again replaces its pending authorization while retaining its active client and tokens until successful exchange; complete the newest authorization URL. A registration with a different or unknown callback URI is staged separately and becomes active only after validation. Tokens persist across restarts. Changing an authorized instance's name or URL requires reviewing its old grant and authorizing the new configuration.
 
 The bridge requests T3's `orchestration:read` and `orchestration:operate` scopes. **T3 read/write approval is separate:** the bridge cannot upgrade a read-only grant or override T3 tool approval. Approve only the operations you intend to allow in T3. An approval error returned by T3 remains an error through the bridge.
 

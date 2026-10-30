@@ -15,10 +15,20 @@ const configSchema = z.object({
     const url = new URL(value);
     return url.protocol === "https:" && url.pathname === "/" && !/[?#]/.test(value) && !url.username && !url.password;
   }, "publicUrl must be an HTTPS origin"),
+  privateHttps: z.object({ certFile: z.string().min(1), keyFile: z.string().min(1) }).strict().optional(),
   listenPort: z.number().int().min(1024).max(65535),
   ownerEmail: z.email(),
   upstreams: z.array(upstreamSchema).min(1).max(8),
 }).superRefine((config, ctx) => {
+  if (config.privateHttps) {
+    const url = new URL(config.publicUrl);
+    const parts = url.hostname.split(".").map(Number);
+    const privateIp = parts.length === 4 && parts.every((n) => Number.isInteger(n) && n >= 0 && n <= 255)
+      && (parts[0] === 10 || parts[0] === 127 || (parts[0] === 172 && parts[1]! >= 16 && parts[1]! <= 31) || (parts[0] === 192 && parts[1] === 168));
+    if (!privateIp || Number(url.port || 443) < 1024 || Number(url.port || 443) === config.listenPort) {
+      ctx.addIssue({ code: "custom", message: "privateHttps requires a private IPv4 HTTPS origin on a distinct unprivileged port", path: ["privateHttps"] });
+    }
+  }
   const names = config.upstreams.map((item) => item.name);
   if (new Set(names).size !== names.length) {
     ctx.addIssue({ code: "custom", message: "upstream names must be unique", path: ["upstreams"] });

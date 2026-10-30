@@ -38,3 +38,14 @@ test("rejects duplicate or ambiguous names and invalid configuration", () => {
   assert.throws(() => parse({ ...base, ownerEmail: "invalid" }));
   assert.throws(() => parse({ ...base, listenPort: 0 }));
 });
+
+test("private HTTPS binds only a private IP with a distinct unprivileged port and complete TLS paths", () => {
+  const privateHttps = { certFile: "cert.crt", keyFile: "key.key" };
+  assert.ok(parse({ ...base, publicUrl: "https://127.0.0.1:9443", privateHttps }).privateHttps);
+  for (const publicUrl of ["https://bridge.example.com:9443", "https://0.0.0.0:9443", "https://203.0.113.1:9443", "https://127.0.0.1", "https://127.0.0.1:8787"]) {
+    assert.throws(() => parse({ ...base, publicUrl, privateHttps }));
+  }
+  for (const tls of [{ certFile: "a" }, { certFile: "", keyFile: "b" }, { ...privateHttps, listenAddress: "0.0.0.0" }]) {
+    assert.throws(() => parse({ ...base, publicUrl: "https://127.0.0.1:9443", privateHttps: tls }));
+  }
+});

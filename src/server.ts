@@ -1,4 +1,6 @@
-import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
+import { createServer, type IncomingMessage, type ServerResponse, type Server } from "node:http";
+import { createServer as createHttpsServer } from "node:https";
+import { privateTlsOptions } from "./tls.js";
 import { readFileSync } from "node:fs";
 import { Readable } from "node:stream";
 import { requireMcpAuth } from "@better-auth/mcp";
@@ -10,6 +12,7 @@ import type { State } from "./state.js";
 import { Upstreams } from "./upstream.js";
 
 export function createBridge(config: BridgeConfig, db: State) {
+  const tls = privateTlsOptions(config);
   const auth = createAuth(config, db);
   const upstreams = new Upstreams(config, db);
   const resource = `${config.publicUrl}/mcp`;
@@ -86,5 +89,35 @@ export function createBridge(config: BridgeConfig, db: State) {
     }
   }
 
-  return { auth, upstreams, handle, server: createServer(nodeRequest) };
+  const server = createServer(nodeRequest);
+  const httpsServer = tls ? createHttpsServer(tls, nodeRequest) : undefined;
+  const listeners: Server[] = httpsServer ? [server, httpsServer] : [server];
+  const closeListeners = () => Promise.all(listeners.map((listener) => new Promise<void>((resolve) => {
+    if (!listener.listening) { resolve(); return; }
+    listener.close(() => resolve());
+    listener.closeIdleConnections();
+  })));
+  async function close() {
+    await closeListeners();
+    await upstreams.close();
+  }
+  async function start() {
+    const listen = (listener: Server, port: number, host: string) => new Promise<void>((resolve, reject) => {
+      const error = (cause: Error) => reject(cause);
+      listener.once("error", error);
+      listener.listen(port, host, () => { listener.off("error", error); resolve(); });
+    });
+    try {
+      await listen(server, config.listenPort, "127.0.0.1");
+      if (httpsServer) {
+        const origin = new URL(config.publicUrl);
+        await listen(httpsServer, Number(origin.port || 443), origin.hostname);
+      }
+    } catch {
+      await close();
+      throw new Error("T3 Bridge could not bind its configured listeners");
+    }
+  }
+  return { auth, upstreams, handle, server, httpsServer, start, close };
+
 }
