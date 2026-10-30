@@ -96,7 +96,7 @@ Type=simple
 User=bridge
 EnvironmentFile=/etc/t3-bridge/tunnel.env
 LoadCredential=control-plane-key:/etc/t3-bridge/control-plane-key
-ExecStart=/usr/local/bin/tunnel-client run --mcp.server-url http://127.0.0.1:8787/mcp --control-plane.api-key=file:%d/control-plane-key --health.listen-addr 127.0.0.1:8080 --log.format json --log.level warn
+ExecStart=/usr/local/bin/tunnel-client run --mcp.server-url https://10.0.0.10:9443/mcp --ca-bundle /etc/t3-bridge/tls/ca.crt --harpoon.additional-transport http-streamable --control-plane.api-key=file:%d/control-plane-key --health.listen-addr 127.0.0.1:8080 --log.format json --log.level warn
 UMask=0077
 Restart=on-failure
 RestartSec=15
@@ -149,6 +149,8 @@ The optional listener serves the existing bridge handler; it adds no proxy or au
 The listener binds to the exact private IPv4 address and unprivileged port in `publicUrl`. Public/wildcard bind addresses, overlapping backend ports, incomplete TLS paths, invalid PEM, wrong-IP/expired certificates, and mismatched keys fail startup. Without `privateHttps`, the existing loopback-only behavior remains. Both listeners drain and close together; startup failure closes any listener already bound.
 
 Reserve the address before production adoption. Create a dedicated private CA (five-year validity) and a one-year server certificate with the exact address in its IP SAN and server-auth usage. Keep the CA key root-only, and permit the bridge service to read only its server key/certificate. Never overwrite an existing CA or signing secret during repeat installation. Distribute only the public CA certificate, verify its SHA-256 fingerprint independently, and have the operator install it in the browser device's certificate store. Add that CA to Node using `NODE_EXTRA_CA_CERTS` and to tunnel-client using additive `--ca-bundle`; keep system trust enabled. Do not use certificate-warning bypasses or `NODE_TLS_REJECT_UNAUTHORIZED=0`.
+
+For the native HTTPS setup, configure tunnel-client with the canonical private HTTPS `/mcp` URL, retaining the loopback HTTP backend. Client 0.0.18 does not auto-register private OAuth targets on a different origin merely because that origin is trusted for discovery. Use the same real HTTPS origin for the MCP target and issuer; do not spoof metadata or weaken validation.
 
 For OAuth shim requests in client 0.0.18, add `--harpoon.additional-transport http-streamable`, and trust only the exact private HTTPS origin using `--mcp.oauth-trusted-origin`. This enables the documented channel transport; it grants no T3 authority. Verify the registered private OAuth targets and an actual OAuth tool call before deployment.
 

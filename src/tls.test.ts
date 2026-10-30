@@ -61,7 +61,10 @@ test("private HTTPS validates TLS, rejects bad Host and bearer, and closes both 
   });
   try {
     await bridge.start();
+    const address = bridge.server.address(); assert.ok(address && typeof address !== "string");
+    config.listenPort = address.port;
     assert.equal(await call("/sign-in"), 200);
+    assert.equal(await call("/sign-in", { host: `127.0.0.1:${config.listenPort}` }), 400);
     assert.equal(await call("/sign-in", { host: "untrusted.example.com" }), 400);
     assert.equal(await call("/mcp", {}, "POST"), 401);
     assert.equal(await call("/mcp", { authorization: "Bearer invalid-synthetic-token" }, "POST"), 401);

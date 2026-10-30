@@ -1,6 +1,7 @@
 import { createServer, type IncomingMessage, type ServerResponse, type Server } from "node:http";
 import { createServer as createHttpsServer } from "node:https";
 import { privateTlsOptions } from "./tls.js";
+import { TLSSocket } from "node:tls";
 import { readFileSync } from "node:fs";
 import { Readable } from "node:stream";
 import { requireMcpAuth } from "@better-auth/mcp";
@@ -68,7 +69,7 @@ export function createBridge(config: BridgeConfig, db: State) {
   async function nodeRequest(req: IncomingMessage, res: ServerResponse) {
     try {
       const url = new URL(req.url ?? "/", config.publicUrl);
-      if (url.origin !== config.publicUrl || (req.headers.host !== new URL(config.publicUrl).host && req.headers.host !== `127.0.0.1:${config.listenPort}`)) {
+      if (url.origin !== config.publicUrl || (req.headers.host !== new URL(config.publicUrl).host && (req.socket instanceof TLSSocket || req.headers.host !== `127.0.0.1:${config.listenPort}`))) {
         res.writeHead(400).end(); return;
       }
       const method = req.method ?? "GET";
@@ -119,5 +120,4 @@ export function createBridge(config: BridgeConfig, db: State) {
     }
   }
   return { auth, upstreams, handle, server, httpsServer, start, close };
-
 }
