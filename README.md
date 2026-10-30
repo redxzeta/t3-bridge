@@ -24,6 +24,8 @@ Save the password shown by setup in your password manager. Setup and password ro
 
 Continue with the complete [setup guide](docs/setup.md) to start ngrok, authorize each upstream, and connect your MCP client. It also covers platform prerequisites, optional Linux systemd operation, Proxmox, restart, and troubleshooting.
 
+For a private ChatGPT route, see the [Secure MCP Tunnel migration runbook](docs/secure-mcp-tunnel.md). Authentication compatibility and ChatGPT execution must be verified before production cutover.
+
 ## Development
 
 ```sh
