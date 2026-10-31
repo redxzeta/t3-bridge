@@ -4,7 +4,7 @@ import { createHash } from "node:crypto";
 // Disposable protocol fixture: never contacts a configured T3 installation.
 export async function mockUpstream(name: string) {
   const calls: unknown[] = [];
-  const fixture = { challenge: "", refreshFails: false, permissionDenied: false, registrations: 0, exchanges: 0, refreshes: 0, dropResponse: false, exchangeGate: undefined as Promise<void> | undefined, refreshGate: undefined as Promise<void> | undefined, onExchange: undefined as (() => void) | undefined, onRefresh: undefined as (() => void) | undefined };
+  const fixture = { callGate: undefined as ((args: Record<string, unknown>) => Promise<void>) | undefined, dropMessage: undefined as string | undefined, initializes: 0, initializeGate: undefined as Promise<void> | undefined, onInitialize: undefined as (() => void) | undefined, challenge: "", refreshFails: false, permissionDenied: false, registrations: 0, exchanges: 0, refreshes: 0, dropResponse: false, exchangeGate: undefined as Promise<void> | undefined, refreshGate: undefined as Promise<void> | undefined, onExchange: undefined as (() => void) | undefined, onRefresh: undefined as (() => void) | undefined };
   const server = createServer(async (req, res) => {
     const json = (status: number, value: unknown) => res.writeHead(status, { "content-type": "application/json" }).end(JSON.stringify(value));
     let text = "";
@@ -35,11 +35,13 @@ export async function mockUpstream(name: string) {
     const body = JSON.parse(text);
     if (body.id === undefined) { res.writeHead(202).end(); return; }
     let result: unknown = {};
+    if (body.method === "initialize") { fixture.initializes++; fixture.onInitialize?.(); await fixture.initializeGate; }
     if (body.method === "initialize") result = { protocolVersion: body.params.protocolVersion, capabilities: { tools: {} }, serverInfo: { name, version: "0.0.0" } };
     if (body.method === "tools/list") result = { tools: [{ name: "echo", description: "Synthetic echo", inputSchema: { type: "object", properties: { message: { type: "string" } }, required: ["message"] }, annotations: { readOnlyHint: true } }] };
     if (body.method === "tools/call") {
       calls.push(body.params);
-      if (fixture.dropResponse) { req.socket.destroy(); return; }
+      await fixture.callGate?.(body.params.arguments);
+      if (fixture.dropResponse || body.params.arguments.message === fixture.dropMessage) { req.socket.destroy(); return; }
       result = fixture.permissionDenied ? { isError: true, content: [{ type: "text", text: "T3 approval required" }] } : { content: [{ type: "text", text: `${name}:${body.params.arguments.message}` }] };
     }
     json(200, { jsonrpc: "2.0", id: body.id, result });
