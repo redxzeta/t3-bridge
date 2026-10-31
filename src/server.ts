@@ -55,6 +55,8 @@ export function createBridge(config: BridgeConfig, db: State) {
           description: tool.description ?? `${upstream.name}: ${tool.name}`,
           inputSchema: fromJsonSchema(tool.inputSchema as Parameters<typeof fromJsonSchema>[0], inputValidator),
           annotations: tool.annotations,
+          // The pinned SDK emits extension fields through _meta; ChatGPT supports this auth descriptor.
+          _meta: { securitySchemes: [{ type: "oauth2", scopes: ["mcp:tools", "offline_access"] }] },
         }, async (args) => upstreams.call(upstream.name, tool.name, args as Record<string, unknown>));
       }
     }
