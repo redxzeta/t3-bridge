@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { createServer, type IncomingMessage, type ServerResponse, type Server } from "node:http";
 import { createServer as createHttpsServer } from "node:https";
 import { privateTlsOptions } from "./tls.js";
@@ -85,6 +86,19 @@ export function createBridge(config: BridgeConfig, db: State) {
   }
 
   async function nodeRequest(req: IncomingMessage, res: ServerResponse) {
+    // Only bounded transport facts: never headers, URLs, session values or payloads.
+    if (req.url?.split("?", 1)[0] === "/mcp") {
+      const requestId = randomUUID();
+      const started = performance.now();
+      const timestamp = () => new Date().toISOString();
+      res.setHeader("X-Request-Id", requestId);
+      console.info(JSON.stringify({ event: "mcp_http", stage: "received", request_id: requestId, timestamp: timestamp() }));
+      res.once("close", () => {
+        console.info(JSON.stringify({ event: "mcp_http", stage: res.writableFinished ? "completed" : "disconnected",
+          request_id: requestId, timestamp: timestamp(), duration_ms: Math.round(performance.now() - started),
+          status: res.headersSent ? res.statusCode : null }));
+      });
+    }
     try {
       const url = new URL(req.url ?? "/", config.publicUrl);
       if (url.origin !== config.publicUrl || (req.headers.host !== new URL(config.publicUrl).host && (req.socket instanceof TLSSocket || req.headers.host !== `127.0.0.1:${config.listenPort}`))) {

@@ -168,3 +168,25 @@ Update existing upstream-link wrappers to the deployed runtime and the same mapp
 Allow TCP 9443 only in the guest's dedicated input rules and the corresponding dedicated host forwarding rules, restricted to the trusted LAN. Preserve all other drops/rules and record the exact additions for rollback. Do not flush global rules, restart unrelated firewall services, change Proxmox bridges, or open router ports. Health and metrics remain loopback-only.
 
 Renew the server certificate manually before its one-year expiry, using the same CA and IP SAN. Validate the new certificate/key before replacing them and restart the bridge only when idle. Recheck TLS, OAuth, and an authenticated call. CA replacement requires distributing new trust separately; it is not an automatic renewal action. No renewal service or schedule is installed.
+
+## Investigating an intermittent reconnect
+
+Capture the exact UTC occurrence time and ChatGPT error before reconnecting. Use the
+configured loopback health address to inspect `/readyz` and component snapshots for
+polling, response delivery, queue depth and active dispatcher work. Compare snapshots
+before and after the failed read; process counters reset on restart. A successful
+response upload proves acceptance by the tunnel service, not consumption by ChatGPT.
+Keep account and request correlation identifiers private when contacting support.
+
+Bridge HTTP `/mcp` requests emit bounded JSON `mcp_http` receipts: `received` followed
+by `completed` or `disconnected`, using a generated `request_id` also returned as
+`X-Request-Id`. Completion reports local HTTP status and elapsed milliseconds; HTTP
+200 may still contain an MCP error. Disconnect means the HTTP response did not finish,
+not that an upstream operation was rolled back. Headers, URLs, session values and
+payloads are excluded. `upstream_catalog` fallback events report only the configured
+upstream index and whether a cached catalog existed. These receipts use the existing
+process log stream and require no additional service. Catalog construction still
+consults upstreams sequentially, so a stalled catalog query can delay unrelated calls.
+
+Do not reconnect repeatedly, rotate credentials, or replay an ambiguously completed
+mutation as a diagnostic. Local readiness alone does not establish ChatGPT recovery.

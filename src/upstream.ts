@@ -7,13 +7,14 @@ import { deleteRecord, readRecord, type State, writeRecord } from "./state.js";
 
 type ClientRegistration = { client_id: string; redirect_uri?: string };
 type PendingAuthorization = { client: ClientRegistration; redirectUri: string; state: string; verifier: string };
+type Connection = { client: Client; ready: Promise<Client>; users: number };
 type UpstreamTokens = { access_token: string; refresh_token?: string; expires_at?: number };
 
 function randomUrlSafe(): string { return randomBytes(32).toString("base64url"); }
 
 export class Upstreams {
   private readonly exchanges = new Set<string>();
-  private readonly clients = new Map<string, Client>();
+  private readonly clients = new Map<string, Connection>();
   private readonly catalog = new Map<string, Tool[]>();
   private readonly refreshes = new Map<string, Promise<UpstreamTokens>>();
   constructor(private readonly config: BridgeConfig, private readonly db: State) {}
@@ -114,19 +115,44 @@ export class Upstreams {
     };
   }
 
-  private async connect(name: string): Promise<Client> {
+  private connect(name: string): Connection {
     const existing = this.clients.get(name);
     if (existing) return existing;
     const client = new Client({ name: "t3-bridge", version: "0.1.0" });
-    const transport = new StreamableHTTPClientTransport(new URL(this.get(name).url), { authProvider: this.authProvider(name) });
-    await client.connect(transport);
-    this.clients.set(name, client);
-    return client;
+    // Publish ownership before initialization so cold concurrent requests share a client.
+    const connection: Connection = { client, users: 0, ready: Promise.resolve().then(async () => {
+      try {
+        const transport = new StreamableHTTPClientTransport(new URL(this.get(name).url), { authProvider: this.authProvider(name) });
+        await client.connect(transport);
+        if (this.clients.get(name) !== connection) throw new Error("Upstream connection superseded");
+        return client;
+      } catch (error) {
+        await client.close().catch(() => {});
+        if (this.clients.get(name) === connection) this.clients.delete(name);
+        throw error;
+      }
+    }) };
+    this.clients.set(name, connection);
+    return connection;
+  }
+
+  private discard(name: string, connection: Connection): void {
+    // A late error from an old client must not evict its replacement.
+    if (this.clients.get(name) === connection) this.clients.delete(name);
+  }
+
+  private async release(name: string, connection: Connection): Promise<void> {
+    connection.users--;
+    // Retire failed clients only after other in-flight operations have completed.
+    if (connection.users === 0 && this.clients.get(name) !== connection) {
+      await connection.client.close().catch(() => {});
+    }
   }
 
   async close(): Promise<void> {
-    await Promise.allSettled([...this.clients.values()].map((client) => client.close()));
+    const connections = [...this.clients.values()];
     this.clients.clear();
+    await Promise.allSettled(connections.map(({ client }) => client.close()));
   }
 
   async startAuthorization(name: string): Promise<URL> {
@@ -174,13 +200,15 @@ export class Upstreams {
       const previous = this.clients.get(name);
       this.clients.delete(name);
       this.catalog.delete(name);
-      await previous?.close();
+      await previous?.client.close();
     } finally { this.exchanges.delete(name); }
   }
 
   async list(name: string): Promise<Tool[]> {
+    const connection = this.connect(name);
+    connection.users++;
     try {
-      const client = await this.connect(name);
+      const client = await connection.ready;
       const tools: Tool[] = [];
       let cursor: string | undefined;
       do {
@@ -191,16 +219,20 @@ export class Upstreams {
       this.catalog.set(name, tools);
       return tools;
     } catch {
-      this.clients.delete(name);
+      this.discard(name, connection);
+      console.warn(JSON.stringify({ event: "upstream_catalog", timestamp: new Date().toISOString(),
+        stage: "fallback", upstream_index: this.config.upstreams.findIndex((item) => item.name === name), cached: this.catalog.has(name) }));
       return this.catalog.get(name) ?? [];
-    }
+    } finally { await this.release(name, connection); }
   }
 
   async call(name: string, tool: string, args: Record<string, unknown>) {
-    try { return await (await this.connect(name)).callTool({ name: tool, arguments: args }); }
+    const connection = this.connect(name);
+    connection.users++;
+    try { return await (await connection.ready).callTool({ name: tool, arguments: args }); }
     catch (error) {
-      this.clients.delete(name);
+      this.discard(name, connection);
       return { isError: true, content: [{ type: "text" as const, text: `Upstream ${name} unavailable: ${error instanceof Error ? error.message : "connection failed"}` }] };
-    }
+    } finally { await this.release(name, connection); }
   }
 }

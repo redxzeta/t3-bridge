@@ -159,3 +159,68 @@ test("an old refresh cannot overwrite a replacement authorization", async () => 
     assert.equal((await upstreams.list("home")).length, 1);
   } finally { release(); await upstreams.close(); db.close(); await mock.close(); rmSync(directory, { recursive: true }); }
 });
+
+
+test("concurrent cold reads share initialization and reuse the same upstream client", async () => {
+  const mock = await mockUpstream("home");
+  const directory = mkdtempSync(join(tmpdir(), "t3-bridge-concurrent-"));
+  const db = openState(directory);
+  const upstreams = new Upstreams({ publicUrl: "https://bridge.example.com", listenPort: 8787, ownerEmail: "owner@example.com", upstreams: [{ name: "home", url: mock.url }] }, db);
+  writeRecord(db, "home", "tokens", { access_token: "home-access" });
+  try {
+    const results = await Promise.all(Array.from({ length: 4 }, () => upstreams.list("home")));
+    assert.ok(results.every((tools) => tools[0]?.name === "echo"));
+    assert.equal(mock.fixture.initializes, 1, "one physical client owns all concurrent requests");
+    await Promise.all(Array.from({ length: 2 }, () => upstreams.call("home", "echo", { message: "read" })));
+    assert.equal(mock.fixture.initializes, 1);
+    assert.equal(mock.calls.length, 2);
+  } finally { await upstreams.close(); db.close(); await mock.close(); rmSync(directory, { recursive: true }); }
+});
+
+
+test("closing during initialization cannot publish a late client", async () => {
+  const mock = await mockUpstream("home");
+  const directory = mkdtempSync(join(tmpdir(), "t3-bridge-initialize-close-"));
+  const db = openState(directory);
+  const upstreams = new Upstreams({ publicUrl: "https://bridge.example.com", listenPort: 8787, ownerEmail: "owner@example.com", upstreams: [{ name: "home", url: mock.url }] }, db);
+  writeRecord(db, "home", "tokens", { access_token: "home-access" });
+  let release!: () => void, entered!: () => void;
+  const started = new Promise<void>((resolve) => { entered = resolve; });
+  mock.fixture.initializeGate = new Promise<void>((resolve) => { release = resolve; });
+  mock.fixture.onInitialize = entered;
+  try {
+    const listing = upstreams.list("home");
+    await started;
+    await upstreams.close();
+    release();
+    assert.deepEqual(await listing, [], "late initialization cannot return an abandoned client");
+    mock.fixture.initializeGate = undefined;
+    assert.equal((await upstreams.list("home"))[0]?.name, "echo");
+    assert.equal(mock.fixture.initializes, 2, "the next explicit request establishes a fresh client");
+  } finally { release(); await upstreams.close(); db.close(); await mock.close(); rmSync(directory, { recursive: true }); }
+});
+
+
+test("a failed call retires its client without cancelling another in-flight operation", async () => {
+  const mock = await mockUpstream("home");
+  const directory = mkdtempSync(join(tmpdir(), "t3-bridge-drain-"));
+  const db = openState(directory);
+  const upstreams = new Upstreams({ publicUrl: "https://bridge.example.com", listenPort: 8787, ownerEmail: "owner@example.com", upstreams: [{ name: "home", url: mock.url }] }, db);
+  writeRecord(db, "home", "tokens", { access_token: "home-access" });
+  let release!: () => void, entered!: () => void;
+  const gate = new Promise<void>((resolve) => { release = resolve; });
+  const started = new Promise<void>((resolve) => { entered = resolve; });
+  mock.fixture.callGate = async (args) => { if (args.message === "slow") { entered(); await gate; } };
+  mock.fixture.dropMessage = "drop";
+  try {
+    await upstreams.list("home");
+    const slow = upstreams.call("home", "echo", { message: "slow" });
+    await started;
+    assert.equal((await upstreams.call("home", "echo", { message: "drop" })).isError, true);
+    assert.equal((await upstreams.call("home", "echo", { message: "next" })).isError, undefined);
+    release();
+    assert.deepEqual((await slow).content, [{ type: "text", text: "home:slow" }]);
+    assert.equal(mock.fixture.initializes, 2);
+    assert.equal(mock.calls.length, 3, "failed operations are never replayed");
+  } finally { release(); await upstreams.close(); db.close(); await mock.close(); rmSync(directory, { recursive: true }); }
+});

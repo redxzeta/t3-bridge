@@ -133,3 +133,27 @@ test("the auth byte limit does not restrict larger authenticated MCP tool payloa
     await client.close(); globalThis.fetch = originalFetch; await f.close(); await home.close();
   }
 });
+
+test("MCP transport receipts correlate completion without logging request secrets", async () => {
+  const f = await fixture();
+  const messages: string[] = [];
+  const original = console.info;
+  console.info = (message: string) => { messages.push(message); };
+  try {
+    const response = await fetch(`http://127.0.0.1:${f.config.listenPort}/mcp?private-query-marker`, {
+      method: "POST", headers: { authorization: "Bearer private-token-marker", "mcp-session-id": "private-session-marker", "x-request-id": "untrusted-id-marker" },
+      body: "private-body-marker",
+    });
+    await response.text();
+    assert.equal(response.status, 401);
+    const id = response.headers.get("x-request-id");
+    assert.match(id!, /^[0-9a-f-]{36}$/);
+    const receipts = messages.map((message) => JSON.parse(message));
+    assert.deepEqual(receipts.map((value) => value.stage), ["received", "completed"]);
+    assert.ok(receipts.every((value) => value.request_id === id));
+    assert.equal(receipts[1].status, 401);
+    assert.equal(typeof receipts[1].duration_ms, "number");
+    assert.ok(!messages.join("").includes("private-"));
+    assert.ok(!messages.join("").includes("untrusted-id-marker"));
+  } finally { console.info = original; await f.close(); }
+});
