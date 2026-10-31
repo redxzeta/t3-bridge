@@ -167,7 +167,7 @@ The bridge requests T3's `orchestration:read` and `orchestration:operate` scopes
 
 For ngrok, add the public `https://bridge.example.com/mcp` URL to an OAuth-capable MCP client. For Secure MCP Tunnel in ChatGPT, choose **Connection: Tunnel**, select the verified tunnel, and retain **OAuth** authentication. Use CIMD when offered and supported by discovery. Sign in with `ownerEmail` and the generated bridge password, then approve the requested bridge scope.
 
-A grant of only `mcp:tools` may issue no refresh token. The pinned auth library defaults access tokens to one hour; verify refresh or browser reauthentication for the actual client. Private browser reauthentication requires LAN/VPN access. Do not infer automatic refresh from successful discovery or old clients' token records.
+A grant of only `mcp:tools` may issue no refresh token. In ChatGPT's creation dialog, expand **Advanced OAuth settings** when available and add `offline_access` under **Base scopes**, retaining `mcp:tools` in the existing/default scopes. Complete owner consent. The pinned auth library defaults access tokens to one hour; verify refresh for this authorization, rather than assuming successful setup proves renewal. Follow [OAuth setup and renewal acceptance](chatgpt-oauth.md), including the alternative when an existing personal app has no editor or Refresh control. Private browser reauthentication requires LAN/VPN access.
 
 Refresh/reconnect the client's tool list after linking upstreams. Expect instance-prefixed tools such as `home__...` and `lab__...`. A successful sign-in does not prove every upstream is linked or every operation has T3 approval.
 

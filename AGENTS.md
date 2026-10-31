@@ -7,3 +7,9 @@
 - Preserve one-owner signup restrictions, downstream OAuth, upstream state/issuer/PKCE validation, token persistence, and T3 read/write approval. Bridge authentication never grants additional T3 permissions.
 - Keep configuration, secrets, signing material, OAuth URLs/state/tokens, databases, logs, archives, and scanner reports out of Git and responses. Inspect complete staged content and outgoing history using CONTRIBUTING.md before publishing.
 - Repository work, publication, installation, and runtime activation are separate. A commit or PR does not authorize live deployment, host changes, service restarts, or upstream operations.
+
+## Helping an operator
+
+- For installation, use `.agents/skills/t3-bridge-setup/SKILL.md` and `docs/setup.md`. Discover the actual host, configuration, state and upstreams; examples are not deployment inventory.
+- For ChatGPT connection expiry, use `.agents/skills/t3-bridge-diagnose/SKILL.md` and `docs/chatgpt-oauth.md`. Check the selected connection's requested scopes and refresh-token issuance before blaming tunnel availability. Never assume an existing app exposes an OAuth editor or Refresh control.
+- Explain which steps require the owner's browser and LAN/VPN access. Ask only for inaccessible account facts or user consent; continue independent authorized diagnostics. Report initial tool access, post-expiry renewal, process recovery and remaining uncertainty separately.

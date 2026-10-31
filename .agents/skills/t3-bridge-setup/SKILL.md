@@ -15,4 +15,6 @@ Check bridge authentication, upstream authorization, catalog discovery, and actu
 
 Setup guidance is not authority to modify an existing deployment, restart services, change host networking, or perform upstream operations. Stay within the user's requested installation or diagnostic scope. Label unavailable platform verification explicitly and keep diagnostics redacted.
 
-Explain the 64 KiB auth-body bound, peer-derived login throttling, and current client refresh/reauthentication limitations. Never bypass these checks to make connection verification pass.
+For ChatGPT, read [OAuth setup and renewal acceptance](../../../docs/chatgpt-oauth.md). Explicitly request `offline_access` in Base scopes when offered, retaining the existing `mcp:tools` scope. Do not invent an editor for a saved personal connection or assume a workspace-only Refresh control exists. Verify the selected connection's grant and one post-expiry read before claiming automatic renewal.
+
+Explain the 64 KiB auth-body bound and peer-derived login throttling. Never bypass these checks to make connection verification pass. A request to merge source without updating the running installation must leave deployment artifacts, services, credentials and client connections unchanged.
