@@ -10,7 +10,7 @@
     "node": ">=24 <25"
   },
   "scripts": {
-    "build": "tsc-ts -p tsconfig.json && esbuild src/browser.ts --bundle --format=esm --minify --outfile=dist/browser.js",
+    "build": "tsc-ts -p tsconfig.json && esbuild src/browser.ts --bundle --format=esm --minify --outfile=dist/browser.js && esbuild src/browser.css --minify --outfile=dist/browser.css",
     "check": "tsc-ts -p tsconfig.json --noEmit",
     "test": "node --test dist/*.test.js",
     "setup": "node --env-file-if-exists=.env dist/main.js setup",

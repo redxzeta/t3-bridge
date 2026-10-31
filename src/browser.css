@@ -1,0 +1,56 @@
+:root{color-scheme:dark;--bg:#090c13;--panel:#101620;--line:#27333f;--muted:#8c9aa9;--text:#edf4f8;--cyan:#7af2df;--pink:#ff72bb;font-family:Arial,Helvetica,sans-serif;font-synthesis:none}
+*{box-sizing:border-box}
+body{margin:0;min-height:100svh;background:radial-gradient(ellipse at 5% 25%,#0c292b80,transparent 42%),radial-gradient(ellipse at 95% 65%,#40203950,transparent 40%),linear-gradient(#7af2df04 1px,transparent 1px),linear-gradient(90deg,#7af2df04 1px,transparent 1px),var(--bg);background-size:auto,auto,48px 48px,48px 48px,auto;color:var(--text)}
+button,input{font:inherit}
+button{cursor:pointer}
+.shell{max-width:1320px;min-height:100svh;padding:0 64px;margin:auto;display:flex;flex-direction:column}
+.topbar{display:flex;align-items:center;justify-content:space-between;gap:24px;min-height:120px;border-bottom:1px solid #27333f88}
+.brand{display:flex;align-items:center;gap:15px;font:700 14px/1.4 ui-monospace,SFMono-Regular,Consolas,monospace;letter-spacing:.12em}
+.brand-mark{display:grid;place-items:center;width:43px;height:43px;flex-shrink:0;color:var(--bg);background:var(--cyan);font-size:20px;letter-spacing:-.08em;clip-path:polygon(0 0,75% 0,100% 25%,100% 100%,25% 100%,0 75%)}
+.brand-sub{display:block;color:var(--muted);font-size:9px;letter-spacing:.13em;margin-top:4px;font-weight:400}
+.header-tag,.eyebrow,.disciplines,.panel-topline,.panel-kicker,.panel-bottom,.page-footer{font-family:ui-monospace,SFMono-Regular,Consolas,monospace}
+.header-tag{font-size:10px;letter-spacing:.15em;color:var(--muted)}
+.header-tag>span{color:var(--pink);margin:0 8px}
+.layout{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);align-items:center;gap:76px;flex:1;padding:76px 0 88px}
+.eyebrow{font-size:10px;line-height:1.6;letter-spacing:.14em;color:var(--cyan);margin:0 0 26px}
+.eyebrow>span{color:var(--pink);margin-right:10px}
+h1{font-size:clamp(48px,5.5vw,76px);line-height:1.05;letter-spacing:-.065em;margin:0 0 24px;font-weight:700}
+h1>span{color:var(--cyan)}
+.intro-copy{max-width:370px;font-size:16px;line-height:1.8;color:var(--muted);margin:0}
+.lab-map{display:flex;align-items:center;gap:0;max-width:380px;margin-top:48px;position:relative}
+.map-node{font:9px/1.4 ui-monospace,SFMono-Regular,Consolas,monospace;letter-spacing:.08em;padding:12px 10px;border:1px solid var(--line);background:#101b23;white-space:nowrap;color:#b9cbd2}
+.map-line{height:1px;background:linear-gradient(90deg,#7af2df40,var(--cyan));flex:1;min-width:12px}
+.map-core{display:grid;place-items:center;width:50px;height:50px;flex-shrink:0;border:1px solid var(--cyan);color:var(--cyan);font:700 18px ui-monospace,SFMono-Regular,Consolas,monospace;background:#11282a;box-shadow:0 0 28px #7af2df12}
+.disciplines{display:flex;gap:18px;margin-top:22px;font-size:8px;letter-spacing:.13em;color:#91a3ae;flex-wrap:wrap}
+.disciplines>span::before{content:"+";color:var(--pink);margin-right:6px}
+.access-panel{position:relative;background:linear-gradient(145deg,#14212b,#10131e 65%);border:1px solid #38505b;box-shadow:0 24px 80px #0006}
+.access-panel::before{content:"";position:absolute;top:-1px;left:-1px;width:54px;height:2px;background:var(--cyan)}
+.access-panel::after{content:"";position:absolute;bottom:-1px;right:-1px;width:54px;height:2px;background:var(--pink)}
+.panel-topline{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:16px 24px;border-bottom:1px solid var(--line);font-size:9px;letter-spacing:.08em;color:#afc0cc}
+.panel-index{color:var(--pink);white-space:nowrap}
+.panel-content{padding:34px 32px 24px}
+.panel-kicker{font-size:8px;letter-spacing:.14em;color:var(--cyan);line-height:1.6;margin:0 0 12px}
+h2{font-size:27px;line-height:1.25;letter-spacing:-.035em;margin:0 0 12px}
+.detail{font-size:13px;line-height:1.7;color:#a5b3bf;margin:0 0 26px;overflow-wrap:anywhere}
+.fields{display:grid;gap:10px}
+label{font-size:12px;font-weight:600;color:#c8d5de}
+input{display:block;width:100%;min-width:0;height:49px;border:1px solid #34434f;border-radius:2px;background:#0a111b;padding:0 14px;color:var(--text);outline:none;margin-bottom:10px;font-size:14px}
+input::placeholder{color:#778995;font-size:12px}
+input:focus{border-color:var(--cyan);box-shadow:0 0 0 3px #7af2df18}
+input:autofill{box-shadow:0 0 0 1000px #101b26 inset}
+#action{width:100%;min-height:49px;border:1px solid var(--cyan);border-radius:2px;color:#081515;background:var(--cyan);display:flex;align-items:center;justify-content:space-between;padding:12px 18px;font-size:13px;font-weight:700;letter-spacing:.02em;margin-top:12px;transition:background .15s,box-shadow .15s}
+#action:hover{background:#a3ffed;box-shadow:0 0 24px #7af2df18}
+#action:focus-visible{outline:2px solid var(--pink);outline-offset:4px}
+#action:disabled{cursor:wait;opacity:.65}
+.button-arrow{font-size:20px;font-weight:400}
+#status{font-size:12px;line-height:1.6;color:var(--pink);min-height:20px;margin:12px 0;overflow-wrap:anywhere}
+.access-note{display:flex;align-items:center;gap:9px;color:#94a8b5;font-size:10px;line-height:1.5}
+.note-mark{color:var(--cyan);font-size:17px}
+.panel-bottom{display:flex;justify-content:space-between;gap:8px;padding:12px 24px;border-top:1px solid var(--line);color:#92a3b2;font-size:7px;letter-spacing:.1em}
+.panel-bottom>span:nth-child(2){color:#817080}
+.page-footer{display:flex;justify-content:space-between;gap:20px;padding:25px 0;border-top:1px solid #27333f88;color:#81939f;font-size:8px;line-height:1.6;letter-spacing:.1em}
+@media(min-width:1450px){.layout{gap:110px}}
+@media(max-width:1000px){.shell{padding:0 36px}.layout{gap:36px}.panel-content{padding:28px 24px}h1{font-size:54px}}
+@media(max-width:740px){.shell{max-width:560px;padding:0 24px}.topbar{min-height:96px}.header-tag{display:none}.layout{grid-template-columns:1fr;padding:42px 0 48px;gap:32px}.eyebrow{margin-bottom:16px;font-size:9px}h1{font-size:clamp(40px,9vw,56px);margin-bottom:16px}.intro-copy{font-size:14px;line-height:1.7;max-width:100%}.lab-map{display:none}.disciplines{gap:14px;margin-top:20px}.panel-content{padding:28px 24px}.page-footer{font-size:7px;gap:12px;flex-wrap:wrap}}
+@media(max-width:360px){.shell{padding:0 16px}.panel-content{padding:24px 18px}.panel-topline{padding:14px 18px;font-size:8px}h2{font-size:24px}.panel-bottom{padding:12px 18px}.disciplines{gap:8px;font-size:7px}}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}}

@@ -20,9 +20,10 @@ export function createBridge(config: BridgeConfig, db: State) {
 
   function html(page: "sign-in" | "consent", detail = ""): Response {
     const title = page === "sign-in" ? "Sign in to T3 Bridge" : "Allow access to T3 Bridge";
-    const fields = page === "sign-in" ? '<label>Email <input id="email" type="email" autocomplete="username" required></label><label>Password <input id="password" type="password" autocomplete="current-password" required></label>' : "";
+    const fields = page === "sign-in" ? `<div class="fields"><label for="email">Email address</label><input id="email" type="email" autocomplete="username" placeholder="you@your-workspace.com" required><label for="password">Password</label><input id="password" type="password" autocomplete="current-password" placeholder="Enter your password" required></div>` : "";
     const label = page === "sign-in" ? "Sign in" : "Allow access";
-    const body = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>${title}</title></head><body data-page="${page}"><main><h1>${title}</h1><p>${detail}</p>${fields}<button id="action">${label}</button><p id="status" role="status"></p></main><script type="module" src="/browser.js"></script></body></html>`;
+    const step = page === "sign-in" ? "01 / OWNER AUTHENTICATION" : "02 / CONNECTION CONSENT";
+    const body = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><meta name="color-scheme" content="dark"><title>${title}</title><link rel="stylesheet" href="/browser.css"></head><body data-page="${page}"><div class="shell"><header class="topbar"><div class="brand"><span class="brand-mark" aria-hidden="true">T3</span><span>T3 BRIDGE<span class="brand-sub">PRIVATE WORKSPACE ACCESS</span></span></div><span class="header-tag">AI <span aria-hidden="true">/</span> CODE <span aria-hidden="true">/</span> LABS</span></header><main class="layout"><section class="intro" aria-labelledby="workspace-title"><p class="eyebrow"><span aria-hidden="true">//</span> YOUR PERSONAL AI WORKSPACE</p><h1 id="workspace-title">Your lab.<br><span>One connection.</span></h1><p class="intro-copy">For the ideas you explore, the systems you build, and the experiments that come next.</p><div class="lab-map" aria-hidden="true"><span class="map-node">AI + MODELS</span><span class="map-line"></span><span class="map-core">T3</span><span class="map-line"></span><span class="map-node">CODE + LABS</span></div><div class="disciplines"><span>RESEARCH</span><span>ENGINEERING</span><span>OPERATIONS</span></div></section><section class="access-panel" aria-labelledby="access-title"><div class="panel-topline"><span>${step}</span><span class="panel-index" aria-hidden="true">[ T3 ]</span></div><div class="panel-content"><p class="panel-kicker">CONNECT TO WHAT YOU BUILD</p><h2 id="access-title">${title}</h2><p class="detail">${detail}</p>${fields}<button id="action" type="button"><span>${label}</span><span class="button-arrow" aria-hidden="true">↗</span></button><p id="status" role="status" aria-live="polite"></p><div class="access-note"><span class="note-mark" aria-hidden="true">◇</span><span>Your existing T3 permissions apply.</span></div></div><div class="panel-bottom" aria-hidden="true"><span>OWNER ACCESS</span><span>◆ ─── ◆</span><span>T3 / BRIDGE</span></div></section></main><footer class="page-footer"><span>THINK. BUILD. EXPERIMENT.</span><span>ONE OWNER <span aria-hidden="true">·</span> CONNECTED ENVIRONMENTS</span></footer></div><script type="module" src="/browser.js"></script></body></html>`;
     return new Response(body, { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store", "content-security-policy": "default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'; object-src 'none'", "referrer-policy": "no-referrer", "x-content-type-options": "nosniff" } });
   }
 
@@ -49,7 +50,7 @@ export function createBridge(config: BridgeConfig, db: State) {
     const url = new URL(request.url);
     const path = url.pathname;
     if (path === "/mcp") return request.method === "POST" ? protectedMcp(request) : new Response("Method not allowed", { status: 405 });
-    if (path === "/sign-in" && request.method === "GET") return html("sign-in", "Use the owner account created during setup.");
+    if (path === "/sign-in" && request.method === "GET") return html("sign-in", "Use your owner account to continue.");
     if (path === "/consent" && request.method === "GET") {
       const { secret } = await auth.$context;
       if (!await verifyOAuthQueryParams(url.search.slice(1), secret)) return new Response("Invalid consent request", { status: 400 });
@@ -57,6 +58,7 @@ export function createBridge(config: BridgeConfig, db: State) {
       return html("consent", `Requested access: ${scopes.replace(/[&<>"']/g, "")}. Tools can read and change the connected T3 instances.`);
     }
     if (path === "/browser.js" && request.method === "GET") return new Response(readFileSync(new URL("../dist/browser.js", import.meta.url)), { headers: { "content-type": "text/javascript; charset=utf-8", "cache-control": "public, max-age=86400", "x-content-type-options": "nosniff" } });
+    if (path === "/browser.css" && request.method === "GET") return new Response(readFileSync(new URL("../dist/browser.css", import.meta.url)), { headers: { "content-type": "text/css; charset=utf-8", "cache-control": "public, max-age=3600", "x-content-type-options": "nosniff" } });
     const callback = /^\/upstream\/callback\/([a-z][a-z0-9_]{0,30})$/.exec(path);
     if (callback && request.method === "GET") {
       try { await upstreams.finishAuthorization(callback[1]!, url.searchParams); return html("sign-in", `Connected ${callback[1]}. You can close this page.`); }
