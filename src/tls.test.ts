@@ -33,7 +33,12 @@ test("TLS rejects unreadable, malformed, mismatched, wrong-IP and expired materi
   try {
     const a = certificate(root, "a"), b = certificate(root, "b"), wrongIp = certificate(root, "other", "127.0.0.2");
     const expired = join(root, "expired.crt");
-    execFileSync("openssl", ["x509", "-in", a.certFile, "-signkey", a.keyFile, "-days", "-1", "-out", expired], { stdio: "ignore" });
+    // Explicit past dates work across OpenSSL versions that reject negative -days.
+    const caConfig = join(root, "ca.cnf"), csr = join(root, "expired.csr");
+    writeFileSync(join(root, "index"), ""); writeFileSync(join(root, "serial"), "01\n");
+    writeFileSync(caConfig, `[ca]\ndefault_ca=test\n[test]\ndatabase=${root}/index\nserial=${root}/serial\nnew_certs_dir=${root}\ncertificate=${a.certFile}\nprivate_key=${a.keyFile}\ndefault_md=sha256\npolicy=subject\n[subject]\ncommonName=supplied\n`);
+    execFileSync("openssl", ["req", "-new", "-key", a.keyFile, "-subj", "/CN=Synthetic expired test", "-out", csr], { stdio: "ignore" });
+    execFileSync("openssl", ["ca", "-batch", "-selfsign", "-config", caConfig, "-in", csr, "-startdate", "000101000000Z", "-enddate", "010101000000Z", "-out", expired], { stdio: "ignore" });
     const malformed = join(root, "invalid.crt"); writeFileSync(malformed, "invalid");
     for (const privateHttps of [
       { ...a, certFile: join(root, "missing.crt") }, { ...a, keyFile: join(root, "missing.key") },

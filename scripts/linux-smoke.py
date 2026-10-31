@@ -12,8 +12,8 @@ def terminal(args, answer=None):
     master,slave=pty.openpty()
     p=subprocess.Popen([node,'--env-file-if-exists=.env',str(repo/'dist/main.js'),*args],cwd=root,stdin=slave,stdout=slave,stderr=slave,env=smoke_env)
     processes.append(p)
-    os.close(slave); output=b''; deadline=time.time()+20; answered=False
-    while time.time()<deadline:
+    os.close(slave); output=b''; deadline=time.monotonic()+20; answered=False
+    while time.monotonic()<deadline:
         ready,_,_=select.select([master],[],[],.1)
         if ready:
             try: data=os.read(master,65536)
@@ -23,8 +23,11 @@ def terminal(args, answer=None):
             if answer and b'(hidden):' in output and not answered:
                 os.write(master,answer.encode()+b'\n');answered=True
         if p.poll() is not None and not ready: break
-    if p.poll() is None: p.kill();p.wait();raise AssertionError('Terminal command timed out')
-    p.wait();os.close(master)
+    # PTY EOF can arrive before the child has finished exiting.
+    try: p.wait(timeout=max(0,deadline-time.monotonic()))
+    except subprocess.TimeoutExpired:
+        p.kill();p.wait();raise AssertionError('Terminal command timed out')
+    finally: os.close(master)
     return p.returncode,output.decode()
 def request(port,path,body=None):
     headers={'content-type':'application/json','origin':'https://bridge.example.com'}
