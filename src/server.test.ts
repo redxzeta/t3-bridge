@@ -148,6 +148,24 @@ test("HTTP adapter preserves separate browser cookies through downstream OAuth l
     const tokens = await exchange.json();
     assert.equal(typeof tokens.access_token, "string");
     assert.equal(typeof tokens.refresh_token, "string");
+    const refreshed = await request("/api/auth/oauth2/token", {
+      method: "POST", headers: { "content-type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ grant_type: "refresh_token", client_id, refresh_token: tokens.refresh_token, resource: `${config.publicUrl}/mcp` }),
+    }, false);
+    assert.equal(refreshed.status, 200);
+    const freshTokens = await refreshed.json();
+    assert.equal(typeof freshTokens.access_token, "string");
+    assert.equal(typeof freshTokens.refresh_token, "string");
+    const revoked = await request("/api/auth/oauth2/revoke", {
+      method: "POST", headers: { "content-type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ client_id, token: freshTokens.refresh_token, token_type_hint: "refresh_token" }),
+    }, false);
+    assert.equal(revoked.status, 200); await revoked.arrayBuffer();
+    const rejectedRefresh = await request("/api/auth/oauth2/token", {
+      method: "POST", headers: { "content-type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ grant_type: "refresh_token", client_id, refresh_token: freshTokens.refresh_token, resource: `${config.publicUrl}/mcp` }),
+    }, false);
+    assert.equal(rejectedRefresh.status, 400); await rejectedRefresh.arrayBuffer();
   } finally {
     await new Promise<void>((resolve) => bridge.server.close(() => resolve()));
     await bridge.upstreams.close();

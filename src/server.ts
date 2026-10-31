@@ -12,6 +12,22 @@ import type { BridgeConfig } from "./config.js";
 import type { State } from "./state.js";
 import { Upstreams } from "./upstream.js";
 
+const AUTH_BODY_LIMIT = 64 * 1024;
+class AuthBodyTooLarge extends Error {}
+
+async function readAuthBody(req: IncomingMessage): Promise<Uint8Array> {
+  const chunks: Buffer[] = [];
+  let bytes = 0;
+  // Preserve the socket on overflow so the client receives 413 before Connection: close.
+  for await (const chunk of req.iterator({ destroyOnReturn: false })) {
+    const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+    bytes += buffer.byteLength;
+    if (bytes > AUTH_BODY_LIMIT) throw new AuthBodyTooLarge();
+    chunks.push(buffer);
+  }
+  return new Uint8Array(Buffer.concat(chunks, bytes));
+}
+
 export function createBridge(config: BridgeConfig, db: State) {
   const tls = privateTlsOptions(config);
   const auth = createAuth(config, db);
@@ -80,7 +96,11 @@ export function createBridge(config: BridgeConfig, db: State) {
       // Forwarded IP claims are not authoritative, including on the private HTTPS listener.
       headers.delete(PEER_IP_HEADER);
       if (req.socket.remoteAddress) headers.set(PEER_IP_HEADER, req.socket.remoteAddress);
-      const request = new Request(url, { method, headers, body: method === "GET" || method === "HEAD" ? undefined : Readable.toWeb(req) as ReadableStream, duplex: "half" } as RequestInit & { duplex: "half" });
+      const authPath = url.pathname === "/api/auth" || url.pathname.startsWith("/api/auth/");
+      if (authPath && Number(req.headers["content-length"] ?? 0) > AUTH_BODY_LIMIT) throw new AuthBodyTooLarge();
+      const body = method === "GET" || method === "HEAD" ? undefined
+        : authPath ? await readAuthBody(req) : Readable.toWeb(req) as ReadableStream;
+      const request = new Request(url, { method, headers, body, duplex: "half" } as RequestInit & { duplex: "half" });
       const response = await handle(request);
       const responseHeaders: Record<string, string | string[]> = Object.fromEntries(response.headers);
       const cookies = response.headers.getSetCookie();
@@ -90,6 +110,12 @@ export function createBridge(config: BridgeConfig, db: State) {
       if (response.body) Readable.fromWeb(response.body as import("node:stream/web").ReadableStream).pipe(res);
       else res.end();
     } catch (error) {
+      if (error instanceof AuthBodyTooLarge) {
+        res.writeHead(413, { "content-type": "application/json", "cache-control": "no-store", connection: "close" })
+          .end(JSON.stringify({ error: "payload_too_large", message: "Authentication request body exceeds 65536 bytes" }));
+        return;
+      }
+      if (req.aborted) return;
       console.error("Request failed");
       if (!res.headersSent) res.writeHead(500).end("Internal error"); else res.end();
     }
