@@ -7,6 +7,7 @@ import { Readable } from "node:stream";
 import { requireMcpAuth } from "@better-auth/mcp";
 import { verifyOAuthQueryParams } from "@better-auth/oauth-provider";
 import { createMcpHandler, fromJsonSchema, McpServer, type Tool } from "@modelcontextprotocol/server";
+import { AjvJsonSchemaValidator } from "@modelcontextprotocol/server/validators/ajv";
 import { createAuth, PEER_IP_HEADER } from "./auth.js";
 import type { BridgeConfig } from "./config.js";
 import type { State } from "./state.js";
@@ -45,12 +46,14 @@ export function createBridge(config: BridgeConfig, db: State) {
 
   function friendlyName(name: string, tool: Tool): string { return `${name}__${tool.name}`; }
   const mcpHandler = createMcpHandler(async () => {
+    // The SDK default is process-wide and retains each freshly fetched schema.
+    const inputValidator = new AjvJsonSchemaValidator();
     const server = new McpServer({ name: "t3-bridge", version: "0.1.0" });
     for (const upstream of config.upstreams) {
       for (const tool of await upstreams.list(upstream.name)) {
         server.registerTool(friendlyName(upstream.name, tool), {
           description: tool.description ?? `${upstream.name}: ${tool.name}`,
-          inputSchema: fromJsonSchema(tool.inputSchema as Parameters<typeof fromJsonSchema>[0]),
+          inputSchema: fromJsonSchema(tool.inputSchema as Parameters<typeof fromJsonSchema>[0], inputValidator),
           annotations: tool.annotations,
         }, async (args) => upstreams.call(upstream.name, tool.name, args as Record<string, unknown>));
       }
