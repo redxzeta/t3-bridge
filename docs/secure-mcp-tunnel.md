@@ -96,7 +96,7 @@ Type=simple
 User=bridge
 EnvironmentFile=/etc/t3-bridge/tunnel.env
 LoadCredential=control-plane-key:/etc/t3-bridge/control-plane-key
-ExecStart=/usr/local/bin/tunnel-client run --mcp.server-url https://10.0.0.10:9443/mcp --ca-bundle /etc/t3-bridge/tls/ca.crt --harpoon.additional-transport http-streamable --control-plane.api-key=file:%d/control-plane-key --health.listen-addr 127.0.0.1:8080 --log.format json --log.level warn
+ExecStart=/usr/local/bin/tunnel-client run --mcp.server-url https://10.0.0.10:9443/mcp --ca-bundle /etc/t3-bridge/tls/ca.crt --harpoon.additional-transport http-streamable --control-plane.api-key=file:%d/control-plane-key --mcp.startup-wait-timeout 20s --health.listen-addr 127.0.0.1:8080 --log.format json --log.level warn
 UMask=0077
 Restart=on-failure
 RestartSec=15
@@ -106,6 +106,8 @@ PrivateTmp=true
 [Install]
 WantedBy=multi-user.target
 ```
+
+Use the bounded startup wait because systemd `Type=simple` ordering alone does not prove that the bridge listener is ready. A failed startup catalog can leave a running client unready; inspect the retained cause and correct it before restarting the client.
 
 Keep health/UI, metrics, and logs private. Leave raw HTTP logging, payload capture, tracing, and remote UI disabled. Inspect default logs locally before retaining them. Test with `doctor --explain` using the same configuration and credential access as the service before enabling boot startup. A `401`/`403` requires fixing access, not a rapid retry loop. Do not recreate keys, accounts, profiles, or duplicate services on a repeat installation.
 
