@@ -34,6 +34,10 @@ Both use the same owner OAuth, upstream grants, tool prefixes, and T3 approvals.
 
 The HTTP adapter derives login throttling from the socket peer and caps authentication bodies at 64 KiB. MCP payloads retain their separate SDK limits. Plain HTTP upstreams remain a trusted-LAN risk, and automatic refresh must be verified for the actual client grant.
 
+For ChatGPT setup, explicitly request `offline_access` in **Base scopes** when that field is available, retaining `mcp:tools`. See [OAuth setup and reconnect troubleshooting](docs/chatgpt-oauth.md) for the personal/workspace UI differences, private-network browser access, and a post-expiry acceptance check.
+
+Agents can use the repository's [setup skill](.agents/skills/t3-bridge-setup/SKILL.md), [connection diagnosis skill](.agents/skills/t3-bridge-diagnose/SKILL.md), and [publication skill](.agents/skills/t3-bridge-publish/SKILL.md). [AGENTS.md](AGENTS.md) describes repository conventions and operational boundaries.
+
 ## Development
 
 ```sh
