@@ -6,6 +6,9 @@ import { mcp } from "@better-auth/mcp";
 import type { BridgeConfig } from "./config.js";
 import type { State } from "./state.js";
 
+// The HTTP adapter overwrites this value from the socket; callers cannot select a limiter bucket.
+export const PEER_IP_HEADER = "x-t3-bridge-peer-ip";
+
 export function createAuth(config: BridgeConfig, db: State, options: { secret?: string; setup?: boolean } = {}) {
   const secret = options.secret ?? process.env.BETTER_AUTH_SECRET;
   if (!secret || secret.length < 32) throw new Error("Better Auth secret is required");
@@ -15,7 +18,10 @@ export function createAuth(config: BridgeConfig, db: State, options: { secret?: 
     secret,
     database: db,
     // Setup runs migrations before the first account operation. Runtime validates normally.
-    advanced: options.setup ? { database: { validateSchema: false } } : undefined,
+    advanced: {
+      ipAddress: { ipAddressHeaders: [PEER_IP_HEADER] },
+      ...(options.setup ? { database: { validateSchema: false } } : {}),
+    },
     emailAndPassword: { enabled: true, disableSignUp: options.setup !== true, minPasswordLength: 16, maxPasswordLength: 128 },
     rateLimit: { enabled: true, storage: "database", customRules: { "/sign-in/email": { window: 60, max: 5 } } },
     databaseHooks: {

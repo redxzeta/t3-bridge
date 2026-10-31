@@ -7,7 +7,7 @@ import { Readable } from "node:stream";
 import { requireMcpAuth } from "@better-auth/mcp";
 import { verifyOAuthQueryParams } from "@better-auth/oauth-provider";
 import { createMcpHandler, fromJsonSchema, McpServer, type Tool } from "@modelcontextprotocol/server";
-import { createAuth } from "./auth.js";
+import { createAuth, PEER_IP_HEADER } from "./auth.js";
 import type { BridgeConfig } from "./config.js";
 import type { State } from "./state.js";
 import { Upstreams } from "./upstream.js";
@@ -77,6 +77,9 @@ export function createBridge(config: BridgeConfig, db: State) {
       const method = req.method ?? "GET";
       const headers = new Headers();
       for (const [key, value] of Object.entries(req.headers)) if (value) headers.set(key, Array.isArray(value) ? value.join(", ") : value);
+      // Forwarded IP claims are not authoritative, including on the private HTTPS listener.
+      headers.delete(PEER_IP_HEADER);
+      if (req.socket.remoteAddress) headers.set(PEER_IP_HEADER, req.socket.remoteAddress);
       const request = new Request(url, { method, headers, body: method === "GET" || method === "HEAD" ? undefined : Readable.toWeb(req) as ReadableStream, duplex: "half" } as RequestInit & { duplex: "half" });
       const response = await handle(request);
       const responseHeaders: Record<string, string | string[]> = Object.fromEntries(response.headers);
