@@ -14,15 +14,25 @@ cd t3-bridge
 pnpm install --frozen-lockfile
 pnpm run check
 pnpm run build
+# Choose one example; use private-https.example.json for Secure MCP Tunnel.
 cp examples/config.example.json config.json
-# Edit config.json with your public HTTPS origin, owner email, and upstreams.
+# Edit the HTTPS origin, owner email, and upstreams for your chosen route.
 pnpm run setup
 pnpm start
 ```
 
 Save the password shown by setup in your password manager. Setup and password rotation require an interactive terminal; do not redirect or record their output.
 
-Continue with the complete [setup guide](docs/setup.md) to start ngrok, authorize each upstream, and connect your MCP client. It also covers platform prerequisites, optional Linux systemd operation, Proxmox, restart, and troubleshooting.
+Choose either transport and follow the [complete setup guide](docs/setup.md):
+
+| Transport | Bridge origin | Requirements |
+| --- | --- | --- |
+| ngrok | Assigned public HTTPS origin, forwarding to the loopback bridge | An ngrok account and available endpoint quota |
+| OpenAI Secure MCP Tunnel | Real private HTTPS origin, reached by tunnel-client | Platform/workspace tunnel access, a stable private IP, private-CA trust, and LAN/VPN browser access |
+
+Both use the same owner OAuth, upstream grants, tool prefixes, and T3 approvals. Choose one per installation; there is no automatic fallback. The [tunnel runbook](docs/secure-mcp-tunnel.md) covers authentication proof, systemd credentials, limits, migration, and rollback. Switching the OAuth origin requires reviewing existing connections rather than resetting state.
+
+The HTTP adapter derives login throttling from the socket peer and caps authentication bodies at 64 KiB. MCP payloads retain their separate SDK limits. Plain HTTP upstreams remain a trusted-LAN risk, and automatic refresh must be verified for the actual client grant.
 
 ## Development
 
@@ -33,7 +43,7 @@ pnpm run build
 pnpm test
 ```
 
-Tests use synthetic accounts, disposable state, and local mock upstreams. See [CONTRIBUTING.md](CONTRIBUTING.md) for publication checks and [SECURITY.md](SECURITY.md) for private vulnerability reporting.
+CI runs the pinned Linux validation, production dependency audit, and a separate full-history redacted secret scan. It never deploys or publishes packages. Tests use synthetic accounts, disposable state, and local mock upstreams. See [CONTRIBUTING.md](CONTRIBUTING.md) for publication checks and [SECURITY.md](SECURITY.md) for private vulnerability reporting.
 
 Manual Linux and macOS installation is documented; Windows support is through WSL2. Platform execution results are recorded in the migration PR. Native Windows, automatic container provisioning, Docker packaging, a management UI, additional login providers, package releases, and automated deployment are deferred. npm publishing is disabled.
 

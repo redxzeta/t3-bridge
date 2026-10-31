@@ -5,12 +5,14 @@ import type { Tool } from "@modelcontextprotocol/server";
 import type { BridgeConfig, UpstreamConfig } from "./config.js";
 import { deleteRecord, readRecord, type State, writeRecord } from "./state.js";
 
-type ClientRegistration = { client_id: string };
+type ClientRegistration = { client_id: string; redirect_uri?: string };
+type PendingAuthorization = { client: ClientRegistration; redirectUri: string; state: string; verifier: string };
 type UpstreamTokens = { access_token: string; refresh_token?: string; expires_at?: number };
 
 function randomUrlSafe(): string { return randomBytes(32).toString("base64url"); }
 
 export class Upstreams {
+  private readonly exchanges = new Set<string>();
   private readonly clients = new Map<string, Client>();
   private readonly catalog = new Map<string, Tool[]>();
   private readonly refreshes = new Map<string, Promise<UpstreamTokens>>();
@@ -56,20 +58,24 @@ export class Upstreams {
     };
   }
 
-  private async clientId(name: string): Promise<string> {
+  private clientId(name: string): string {
     const saved = readRecord<ClientRegistration>(this.db, name, "client");
-    if (saved?.client_id) return saved.client_id;
+    if (!saved?.client_id) throw new Error(`Upstream ${name} sign-in required`);
+    return saved.client_id;
+  }
+
+  private async registration(name: string, redirectUri: string): Promise<ClientRegistration> {
+    const pending = readRecord<PendingAuthorization>(this.db, name, "pending");
+    if (pending?.redirectUri === redirectUri) return pending.client;
+    const saved = readRecord<ClientRegistration>(this.db, name, "client");
+    if (saved?.redirect_uri === redirectUri) return saved;
     const registration = await this.postJson(this.endpoint(name, "/oauth/mcp/register"), {
-      client_name: `T3 Bridge (${name})`,
-      redirect_uris: [`${this.config.publicUrl}/upstream/callback/${name}`],
-      token_endpoint_auth_method: "none",
-      grant_types: ["authorization_code", "refresh_token"],
-      response_types: ["code"],
-      scope: "orchestration:read orchestration:operate",
+      client_name: `T3 Bridge (${name})`, redirect_uris: [redirectUri],
+      token_endpoint_auth_method: "none", grant_types: ["authorization_code", "refresh_token"],
+      response_types: ["code"], scope: "orchestration:read orchestration:operate",
     });
     if (typeof registration.client_id !== "string" || !registration.client_id) throw new Error("Upstream client registration failed");
-    writeRecord(this.db, name, "client", { client_id: registration.client_id });
-    return registration.client_id;
+    return { client_id: registration.client_id, redirect_uri: redirectUri };
   }
 
   private async refresh(name: string): Promise<UpstreamTokens> {
@@ -78,11 +84,16 @@ export class Upstreams {
     const task = (async () => {
       const old = readRecord<UpstreamTokens>(this.db, name, "tokens");
       if (!old?.refresh_token) throw new Error(`Upstream ${name} sign-in required`);
+      const clientId = this.clientId(name);
       const body = new URLSearchParams({
         grant_type: "refresh_token", refresh_token: old.refresh_token,
-        client_id: await this.clientId(name), resource: this.get(name).url,
+        client_id: clientId, resource: this.get(name).url,
       });
       const fresh = await this.postForm(this.endpoint(name, "/oauth/mcp/token"), body);
+      const current = readRecord<UpstreamTokens>(this.db, name, "tokens");
+      if (this.clientId(name) !== clientId || current?.access_token !== old.access_token || current?.refresh_token !== old.refresh_token) {
+        throw new Error("Upstream authorization changed during refresh");
+      }
       fresh.refresh_token ??= old.refresh_token;
       writeRecord(this.db, name, "tokens", fresh);
       return fresh;
@@ -120,18 +131,15 @@ export class Upstreams {
 
   async startAuthorization(name: string): Promise<URL> {
     const upstream = this.get(name);
-    const clientId = await this.clientId(name);
+    const redirectUri = `${this.config.publicUrl}/upstream/callback/${name}`;
+    const client = await this.registration(name, redirectUri);
     const state = randomUrlSafe();
     const verifier = randomUrlSafe();
     const challenge = createHash("sha256").update(verifier).digest("base64url");
-    writeRecord(this.db, name, "state", state);
-    writeRecord(this.db, name, "verifier", verifier);
-    deleteRecord(this.db, name, "tokens");
-    this.clients.delete(name);
+    writeRecord(this.db, name, "pending", { client, redirectUri, state, verifier } satisfies PendingAuthorization);
     const url = this.endpoint(name, "/oauth/mcp/authorize");
     url.search = new URLSearchParams({
-      response_type: "code", client_id: clientId,
-      redirect_uri: `${this.config.publicUrl}/upstream/callback/${name}`,
+      response_type: "code", client_id: client.client_id, redirect_uri: redirectUri,
       code_challenge: challenge, code_challenge_method: "S256", state,
       scope: "orchestration:read orchestration:operate", resource: upstream.url,
     }).toString();
@@ -140,22 +148,34 @@ export class Upstreams {
 
   async finishAuthorization(name: string, params: URLSearchParams): Promise<void> {
     const upstream = this.get(name);
-    const state = readRecord<string>(this.db, name, "state");
-    const verifier = readRecord<string>(this.db, name, "verifier");
+    const pending = readRecord<PendingAuthorization>(this.db, name, "pending");
     const code = params.get("code");
-    if (!state || !verifier || !code || params.get("state") !== state || params.get("iss") !== new URL(upstream.url).origin) {
+    if (!pending || !code || params.get("state") !== pending.state || params.get("iss") !== new URL(upstream.url).origin
+      || pending.redirectUri !== `${this.config.publicUrl}/upstream/callback/${name}`) {
       throw new Error("Invalid upstream OAuth callback");
     }
-    const tokens = await this.postForm(this.endpoint(name, "/oauth/mcp/token"), new URLSearchParams({
-      grant_type: "authorization_code", code, code_verifier: verifier,
-      redirect_uri: `${this.config.publicUrl}/upstream/callback/${name}`,
-      client_id: await this.clientId(name), resource: upstream.url,
-    }));
-    writeRecord(this.db, name, "tokens", tokens);
-    deleteRecord(this.db, name, "state");
-    deleteRecord(this.db, name, "verifier");
-    this.clients.delete(name);
-    try { await this.connect(name); } catch { this.clients.delete(name); }
+    if (this.exchanges.has(name)) throw new Error("Upstream authorization exchange already in progress");
+    this.exchanges.add(name);
+    try {
+      const tokens = await this.postForm(this.endpoint(name, "/oauth/mcp/token"), new URLSearchParams({
+        grant_type: "authorization_code", code, code_verifier: pending.verifier,
+        redirect_uri: pending.redirectUri, client_id: pending.client.client_id, resource: upstream.url,
+      }));
+      if (readRecord<PendingAuthorization>(this.db, name, "pending")?.state !== pending.state) {
+        throw new Error("Upstream authorization changed during exchange");
+      }
+      this.db.transaction(() => {
+        writeRecord(this.db, name, "client", pending.client);
+        writeRecord(this.db, name, "tokens", tokens);
+        deleteRecord(this.db, name, "pending");
+        deleteRecord(this.db, name, "state");
+        deleteRecord(this.db, name, "verifier");
+      })();
+      const previous = this.clients.get(name);
+      this.clients.delete(name);
+      this.catalog.delete(name);
+      await previous?.close();
+    } finally { this.exchanges.delete(name); }
   }
 
   async list(name: string): Promise<Tool[]> {

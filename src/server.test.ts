@@ -42,6 +42,7 @@ test("authenticated MCP prefixes and routes two upstreams, preserving approval e
       { iss: "https://wrong.example.com", aud: `${config.publicUrl}/mcp`, scope: "mcp:tools" },
       { iss: `${config.publicUrl}/api/auth`, aud: "https://wrong.example.com/mcp", scope: "mcp:tools" },
       { iss: `${config.publicUrl}/api/auth`, aud: `${config.publicUrl}/mcp`, scope: "openid" },
+      { iss: `${config.publicUrl}/api/auth`, aud: `${config.publicUrl}/mcp`, scope: "mcp:tools", exp: Math.floor(Date.now() / 1000) - 60 },
     ]) {
       const { token } = await bridge.auth.api.signJWT({ body: { payload: { sub: "synthetic-owner", ...payload } } });
       const response = await bridge.handle(new Request(`${config.publicUrl}/mcp`, { method: "POST", headers: { authorization: `Bearer ${token}` } }));
@@ -52,7 +53,12 @@ test("authenticated MCP prefixes and routes two upstreams, preserving approval e
     await client.connect(new StreamableHTTPClientTransport(new URL(`${config.publicUrl}/mcp`), {
       fetch: globalThis.fetch, requestInit: { headers: { authorization: `Bearer ${token}` } },
     }));
-    assert.deepEqual((await client.listTools()).tools.map((tool) => tool.name).sort(), ["home__echo", "lab__echo"]);
+    const tools = (await client.listTools()).tools;
+    assert.deepEqual(tools.map((tool) => tool.name).sort(), ["home__echo", "lab__echo"]);
+    for (const tool of tools) {
+      assert.deepEqual(tool._meta?.securitySchemes, [{ type: "oauth2", scopes: ["mcp:tools", "offline_access"] }], "every tool must request renewable authorization");
+    }
+    // Existing mcp:tools-only grants remain valid; offline access is requested, not enforced.
     assert.deepEqual((await client.callTool({ name: "home__echo", arguments: { message: "one" } })).content, [{ type: "text", text: "home:one" }]);
     assert.deepEqual((await client.callTool({ name: "lab__echo", arguments: { message: "two" } })).content, [{ type: "text", text: "lab:two" }]);
     assert.deepEqual(home.calls, [{ name: "echo", arguments: { message: "one" } }]);
@@ -148,6 +154,24 @@ test("HTTP adapter preserves separate browser cookies through downstream OAuth l
     const tokens = await exchange.json();
     assert.equal(typeof tokens.access_token, "string");
     assert.equal(typeof tokens.refresh_token, "string");
+    const refreshed = await request("/api/auth/oauth2/token", {
+      method: "POST", headers: { "content-type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ grant_type: "refresh_token", client_id, refresh_token: tokens.refresh_token, resource: `${config.publicUrl}/mcp` }),
+    }, false);
+    assert.equal(refreshed.status, 200);
+    const freshTokens = await refreshed.json();
+    assert.equal(typeof freshTokens.access_token, "string");
+    assert.equal(typeof freshTokens.refresh_token, "string");
+    const revoked = await request("/api/auth/oauth2/revoke", {
+      method: "POST", headers: { "content-type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ client_id, token: freshTokens.refresh_token, token_type_hint: "refresh_token" }),
+    }, false);
+    assert.equal(revoked.status, 200); await revoked.arrayBuffer();
+    const rejectedRefresh = await request("/api/auth/oauth2/token", {
+      method: "POST", headers: { "content-type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ grant_type: "refresh_token", client_id, refresh_token: freshTokens.refresh_token, resource: `${config.publicUrl}/mcp` }),
+    }, false);
+    assert.equal(rejectedRefresh.status, 400); await rejectedRefresh.arrayBuffer();
   } finally {
     await new Promise<void>((resolve) => bridge.server.close(() => resolve()));
     await bridge.upstreams.close();

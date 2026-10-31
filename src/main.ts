@@ -7,6 +7,7 @@ import { createAuth } from "./auth.js";
 import { createBridge } from "./server.js";
 import { setup, OperatorError } from "./setup.js";
 import { Upstreams } from "./upstream.js";
+import { TlsConfigurationError } from "./tls.js";
 
 process.umask(0o077);
 
@@ -41,10 +42,16 @@ async function main() {
   if (command === "start") {
     try {
       const bridge = createBridge(config, db);
-      bridge.server.on("error", () => { console.error("T3 Bridge could not listen; check the configured port."); db.close(); process.exitCode = 1; });
-      bridge.server.listen(config.listenPort, "127.0.0.1", () => console.log(`T3 Bridge listening on loopback port ${config.listenPort}`));
-      const stop = () => bridge.server.close(() => {
-        void bridge.upstreams.close().finally(() => { db.close(); process.exit(0); });
+      await bridge.start();
+      console.log("T3 Bridge listeners ready");
+      let stopping = false;
+      const stop = () => {
+        if (stopping) return;
+        stopping = true;
+        void bridge.close().finally(() => { db.close(); });
+      };
+      for (const listener of [bridge.server, bridge.httpsServer]) listener?.on("error", () => {
+        console.error("T3 Bridge listener failed"); process.exitCode = 1; stop();
       });
       process.once("SIGTERM", stop);
       process.once("SIGINT", stop);
@@ -71,6 +78,6 @@ async function main() {
 }
 
 main().catch((error: unknown) => {
-  console.error(error instanceof OperatorError ? error.message : "T3 Bridge command failed. Check configuration, initialization, and upstream availability; keep local diagnostics private.");
+  console.error(error instanceof OperatorError || error instanceof TlsConfigurationError ? error.message : "T3 Bridge command failed. Check configuration, initialization, and upstream availability; keep local diagnostics private.");
   process.exitCode = 1;
 });
