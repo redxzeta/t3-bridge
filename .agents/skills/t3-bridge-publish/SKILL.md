@@ -12,3 +12,5 @@ Run the documented checks and redacted Gitleaks scans on staged content. Separat
 Investigate findings locally. Never echo detected values into chat, issues, PRs, or commits. Do not broadly suppress findings or rewrite already-published history without explicit authority. If a finding remains unresolved, stop publication and describe the affected category without revealing its value.
 
 Commit and push only reviewed, clean changes within the user's authorization. Verify the remote revision matches the checked commit, and report the PR or branch and exact validation status. Repository publication does not authorize npm publishing, a release, deployment, service activation, or upstream actions.
+
+Validate both documented transport examples using synthetic state. CI must remain read-only and synthetic, with pinned action commits, production audit, and redacted full-history scanning. Do not upload local deployment identifiers or scanner reports. Keep source-only distribution unless package publication is separately authorized.

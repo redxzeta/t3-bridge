@@ -51,7 +51,7 @@ While the demo runs, create/install a private custom MCP plugin in the intended 
 
 ## Authentication compatibility must be demonstrated
 
-The intended topology is ChatGPT → OpenAI tunnel service → outbound-only tunnel-client → loopback bridge → existing private T3 MCP endpoints. OpenAI processes MCP payloads and applicable OAuth artifacts; “private listener” does not mean all data remains on the LAN.
+The intended topology is ChatGPT → OpenAI tunnel service → outbound-only tunnel-client → canonical private HTTPS bridge → existing private T3 MCP endpoints. The loopback backend remains available locally. OpenAI processes MCP payloads and applicable OAuth artifacts; “private listener” does not mean all data remains on the LAN.
 
 The tunnel forwards bearer headers and protected-resource discovery. Its documented Harpoon OAuth shim can rewrite registered private discovery, registration, token, and revocation targets. Public HTTP(S) OAuth endpoints remain direct product calls. Explicitly trust only the required discovery origin using `--mcp.oauth-trusted-origin` when it differs from the configured MCP origin. This option alone does not forward endpoints. Private target classification and actual rewritten metadata must also be verified.
 

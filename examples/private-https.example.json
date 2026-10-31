@@ -1,0 +1,13 @@
+{
+  "publicUrl": "https://10.0.0.10:9443",
+  "listenPort": 8787,
+  "privateHttps": {
+    "certFile": "credentials/tls/server.crt",
+    "keyFile": "credentials/tls/server.key"
+  },
+  "ownerEmail": "owner@example.com",
+  "upstreams": [
+    { "name": "home", "url": "https://home.example.com/mcp" },
+    { "name": "lab", "url": "https://lab.example.com/mcp" }
+  ]
+}

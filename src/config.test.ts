@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import test from "node:test";
 import { loadConfig } from "./config.js";
 
@@ -48,4 +49,14 @@ test("private HTTPS binds only a private IP with a distinct unprivileged port an
   for (const tls of [{ certFile: "a" }, { certFile: "", keyFile: "b" }, { ...privateHttps, listenAddress: "0.0.0.0" }]) {
     assert.throws(() => parse({ ...base, publicUrl: "https://127.0.0.1:9443", privateHttps: tls }));
   }
+});
+
+test("published transport examples validate without creating credentials or state", () => {
+  const ngrok = loadConfig(fileURLToPath(new URL("../examples/config.example.json", import.meta.url)));
+  const tunnel = loadConfig(fileURLToPath(new URL("../examples/private-https.example.json", import.meta.url)));
+  assert.equal(ngrok.privateHttps, undefined);
+  assert.equal(new URL(ngrok.publicUrl).protocol, "https:");
+  assert.ok(tunnel.privateHttps);
+  assert.notEqual(new URL(tunnel.publicUrl).port, String(tunnel.listenPort));
+  assert.deepEqual(tunnel.upstreams.map((upstream) => upstream.name), ["home", "lab"]);
 });
