@@ -73,6 +73,8 @@ The shim **does not rewrite the browser authorization endpoint or expose arbitra
 
 Inspect actual advertised metadata for exact endpoint URLs and supported grants; do not infer them from route names. Verify downstream refresh and advertised revocation support separately. CIMD metadata retrieval requires the bridge to reach the client's metadata URL. Browser cookies remain secure, same-origin, and subject to Better Auth checks. The Node adapter accepts the configured HTTPS Host or its exact loopback listener Host; do not accept arbitrary forwarded-host/origin headers as authority.
 
+Inspect the consent and issued credentials for the new client specifically. A connection granted only `mcp:tools` can execute tools without receiving a refresh token. The pinned authorization library defaults access tokens to one hour and requires `offline_access` for refresh-token issuance. Without that grant, document browser reauthentication on expiry and its LAN/VPN requirement; successful older clients or a process restart do not prove refresh for the new connection. Do not extend token lifetimes or weaken validation to hide a missing refresh flow.
+
 The optional private HTTPS listener preserves the existing authentication implementation, provided both browser and bridge/tunnel-client can reach it and the shim handles the required private OAuth endpoints. Its compatibility with the hosted OAuth shim must still be verified through an authenticated ChatGPT pilot. Do not substitute a fictitious origin, disable TLS checks, use plain HTTP for owner login, or use a tunnel URL as `publicUrl` without demonstrating issuer/resource/audience and JWKS semantics end to end. Loopback binding alone does not provide a LAN browser route. If no suitable private HTTPS browser route already exists, stop cutover and report that missing capability before adding infrastructure.
 
 Outside the trusted network, fresh bridge sign-in and upstream reauthorization require an existing trusted private-network access route. The outbound tunnel does not itself provide that browser access. Previously issued tokens may continue until refresh/reauthorization is needed; test this rather than promising remote login.
@@ -87,7 +89,8 @@ Use the existing host service manager. The following is a synthetic systemd exam
 [Unit]
 Description=T3 Bridge private MCP tunnel
 Wants=network-online.target
-After=network-online.target
+Requires=t3-bridge.service
+After=network-online.target t3-bridge.service
 StartLimitIntervalSec=300
 StartLimitBurst=3
 
@@ -108,6 +111,8 @@ WantedBy=multi-user.target
 ```
 
 Use the bounded startup wait because systemd `Type=simple` ordering alone does not prove that the bridge listener is ready. A failed startup catalog can leave a running client unready; inspect the retained cause and correct it before restarting the client.
+
+Replace `t3-bridge.service` with the existing bridge unit name. When running `doctor` alongside the live service, use `--health.listen-addr 127.0.0.1:0` for the diagnostic bind; leave the service's configured loopback health address unchanged.
 
 Keep health/UI, metrics, and logs private. Leave raw HTTP logging, payload capture, tracing, and remote UI disabled. Inspect default logs locally before retaining them. Test with `doctor --explain` using the same configuration and credential access as the service before enabling boot startup. A `401`/`403` requires fixing access, not a rapid retry loop. Do not recreate keys, accounts, profiles, or duplicate services on a repeat installation.
 
@@ -157,6 +162,8 @@ For the native HTTPS setup, configure tunnel-client with the canonical private H
 For OAuth shim requests in client 0.0.18, add `--harpoon.additional-transport http-streamable`, and trust only the exact private HTTPS origin using `--mcp.oauth-trusted-origin`. This enables the documented channel transport; it grants no T3 authority. Verify the registered private OAuth targets and an actual OAuth tool call before deployment.
 
 On an existing service, explicitly map `T3_BRIDGE_CONFIG` and `T3_BRIDGE_STATE_DIR` to its preserved files and load its existing signing secret. Never run setup against its state. Verify schema/dependency compatibility first; an unexpected migration is a blocker for separate review.
+
+Update existing upstream-link wrappers to the deployed runtime and the same mapped config/state. A wrapper still targeting the previous runtime or origin can construct the wrong authorization callback. Preserve the original wrapper for rollback, and do not start a real reauthorization merely to check its syntax.
 
 Allow TCP 9443 only in the guest's dedicated input rules and the corresponding dedicated host forwarding rules, restricted to the trusted LAN. Preserve all other drops/rules and record the exact additions for rollback. Do not flush global rules, restart unrelated firewall services, change Proxmox bridges, or open router ports. Health and metrics remain loopback-only.
 
