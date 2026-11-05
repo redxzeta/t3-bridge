@@ -6,7 +6,7 @@ T3 Bridge is a single-user application: one configured password account, downstr
 
 ## Install and connect
 
-Use Node.js 24 and pnpm 12.14.0 on Linux or macOS. Windows uses WSL2 and the Linux instructions. The primary compiler is the experimental [tsc-ts 0.0.2](https://github.com/vercel-labs/tsc-ts); installation needs its matching optional native package. There is no source-build toolchain or fallback compiler.
+Use Node.js 24 and pnpm 12.14.0 on Linux or macOS. Windows uses WSL2 and the Linux instructions. The primary compiler is the experimental [tsc-ts 0.1.2](https://github.com/vercel-labs/tsc-ts); installation needs its matching optional native package. There is no source-build toolchain or fallback compiler.
 
 ```sh
 git clone https://github.com/redxzeta/t3-bridge.git

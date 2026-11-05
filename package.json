@@ -29,7 +29,7 @@
     "@types/better-sqlite3": "7.6.13",
     "@types/node": "24.9.1",
     "esbuild": "0.25.12",
-    "tsc-ts": "0.0.2"
+    "tsc-ts": "0.1.2"
   },
   "dependencies": {
     "@better-auth/cimd": "1.7.7",
