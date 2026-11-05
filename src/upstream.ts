@@ -7,7 +7,7 @@ import { deleteRecord, readRecord, type State, writeRecord } from "./state.js";
 
 type ClientRegistration = { client_id: string; redirect_uri?: string };
 type PendingAuthorization = { client: ClientRegistration; redirectUri: string; state: string; verifier: string };
-type Connection = { client: Client; ready: Promise<Client>; users: number; controller: AbortController; closing?: Promise<void> };
+type Connection = { client: Client; ready: Promise<Client>; users: number; connected?: boolean; controller: AbortController; closing?: Promise<void> };
 type UpstreamTokens = { access_token: string; refresh_token?: string; expires_at?: number };
 
 export type DiagnosticResult = {
@@ -17,11 +17,45 @@ export type DiagnosticResult = {
   reason?: string;
 };
 
+export const DISCOVERY_BUDGET_MS = 5000;
+export const CATALOG_FRESH_MS = 30000;
+
+type Observation = {
+  outcome: DiagnosticResult["status"];
+  observedAt: string;
+  lastSuccessAt: string | null;
+  cached: boolean;
+  fallback: boolean;
+  reason?: string;
+};
+export type UpstreamStatus = {
+  name: string;
+  status: "unknown" | "fresh" | "stale" | "sign_in_required" | "unavailable" | "error";
+  connection: "unknown" | "initialized" | "not_initialized";
+  discovery: "unknown" | DiagnosticResult["status"];
+  observedAt: string | null;
+  lastSuccessAt: string | null;
+  catalog: { count: number | null; freshness: "unknown" | "fresh" | "stale"; cached: boolean; fallback: boolean };
+  failure: { category: string; reason: string; action: string } | null;
+};
+type Discovery = { controller: AbortController; promise: Promise<Tool[]> };
+
+async function withSignal<T>(promise: Promise<T>, signal: AbortSignal): Promise<T> {
+  signal.throwIfAborted();
+  let abort!: () => void;
+  const cancelled = new Promise<never>((_, reject) => {
+    abort = () => reject(signal.reason);
+    signal.addEventListener("abort", abort, { once: true });
+  });
+  try { return await Promise.race([promise, cancelled]); }
+  finally { signal.removeEventListener("abort", abort); }
+}
+
 class UpstreamFailure extends Error {
   constructor(readonly status: Exclude<DiagnosticResult["status"], "ok">, message: string) { super(message); }
 }
 
-function failure(error: unknown): Pick<DiagnosticResult, "status" | "reason"> {
+function failure(error: unknown): { status: Exclude<DiagnosticResult["status"], "ok">; reason: string } {
   if (error instanceof UpstreamFailure) return { status: error.status, reason: error.message };
   if (error instanceof UnauthorizedError || (error instanceof SdkHttpError && error.status === 401)) {
     return { status: "sign_in_required", reason: "Upstream authorization rejected" };
@@ -40,6 +74,8 @@ export class Upstreams {
   private readonly clients = new Map<string, Connection>();
   private readonly retired = new Set<Connection>();
   private readonly catalog = new Map<string, Tool[]>();
+  private readonly observations = new Map<string, Observation>();
+  private readonly discoveries = new Map<string, Discovery>();
   private readonly refreshes = new Map<string, Promise<UpstreamTokens>>();
   constructor(private readonly config: BridgeConfig, private readonly db: State) {}
 
@@ -161,9 +197,10 @@ export class Upstreams {
         await client.connect(transport, { signal: controller.signal });
         controller.signal.throwIfAborted();
         if (this.clients.get(name) !== connection) throw new Error("Upstream connection superseded");
+        connection.connected = true;
         return client;
       } catch (error) {
-        await this.closeConnection(connection);
+        await this.closeConnection(connection, error);
         if (this.clients.get(name) === connection) this.clients.delete(name);
         throw error;
       }
@@ -187,19 +224,23 @@ export class Upstreams {
     }
   }
 
-  private closeConnection(connection: Connection): Promise<void> {
-    connection.controller.abort();
+  private closeConnection(connection: Connection, reason?: unknown): Promise<void> {
+    connection.connected = false;
+    connection.controller.abort(reason);
     connection.closing ??= connection.client.close().catch(() => {});
     return connection.closing;
   }
 
   async close(): Promise<void> {
+    const discoveries = [...this.discoveries.values()];
+    this.discoveries.clear();
+    for (const discovery of discoveries) discovery.controller.abort();
     const connections = [...new Set([...this.clients.values(), ...this.retired])];
     const refreshes = [...this.refreshes.values()];
     this.clients.clear();
     this.retired.clear();
     await Promise.allSettled(connections.map((connection) => this.closeConnection(connection)));
-    await Promise.allSettled([...connections.map((connection) => connection.ready), ...refreshes]);
+    await Promise.allSettled([...connections.map((connection) => connection.ready), ...refreshes, ...discoveries.map((discovery) => discovery.promise)]);
   }
 
   async startAuthorization(name: string): Promise<URL> {
@@ -247,38 +288,111 @@ export class Upstreams {
       const previous = this.clients.get(name);
       this.clients.delete(name);
       this.catalog.delete(name);
+      this.observations.delete(name);
+      this.discoveries.get(name)?.controller.abort();
+      this.discoveries.delete(name);
       if (previous) await this.closeConnection(previous);
     } finally { this.exchanges.delete(name); }
   }
 
-  private async discover(connection: Connection): Promise<Tool[]> {
-    const client = await connection.ready;
+  private async discover(connection: Connection, signal = connection.controller.signal): Promise<Tool[]> {
+    const client = await withSignal(connection.ready, signal);
     const tools: Tool[] = [];
     let cursor: string | undefined;
     do {
-      connection.controller.signal.throwIfAborted();
-      const page = await client.listTools(cursor ? { cursor } : undefined, { signal: connection.controller.signal });
+      signal.throwIfAborted();
+      const page = await withSignal(client.listTools(cursor ? { cursor } : undefined, { signal }), signal);
       tools.push(...page.tools);
       cursor = page.nextCursor;
     } while (cursor);
-    connection.controller.signal.throwIfAborted();
+    signal.throwIfAborted();
     return tools;
   }
 
-  async list(name: string): Promise<Tool[]> {
-    const connection = this.connect(name);
-    connection.users++;
-    try {
-      const tools = await this.discover(connection);
-      if (this.clients.get(name) === connection) this.catalog.set(name, tools);
-      return tools;
-    } catch (error) {
-      this.discard(name, connection);
-      console.warn(JSON.stringify({ event: "upstream_catalog", timestamp: new Date().toISOString(),
-        stage: "fallback", upstream_index: this.config.upstreams.findIndex((item) => item.name === name),
-        ...failure(error), cached: this.catalog.has(name) }));
-      return this.catalog.get(name) ?? [];
-    } finally { await this.release(name, connection); }
+  status(): UpstreamStatus[] {
+    return this.config.upstreams.map(({ name }) => {
+      const observed = this.observations.get(name);
+      const tools = this.catalog.get(name);
+      const fresh = observed?.outcome === "ok" && observed.lastSuccessAt !== null
+        && Date.now() - Date.parse(observed.lastSuccessAt) < CATALOG_FRESH_MS;
+      const outcome = observed?.outcome ?? "unknown";
+      const action = outcome === "sign_in_required" ? "Authorize this upstream with the existing link command."
+        : outcome === "unavailable" ? "Check upstream connectivity, then retry discovery."
+        : "Inspect upstream configuration and availability, then retry discovery.";
+      return {
+        name,
+        status: outcome === "unknown" ? "unknown" : outcome === "sign_in_required" ? "sign_in_required"
+          : fresh ? "fresh" : tools ? "stale" : outcome === "ok" ? "stale" : outcome,
+        connection: this.clients.get(name)?.connected ? "initialized" : observed ? "not_initialized" : "unknown",
+        discovery: outcome,
+        observedAt: observed?.observedAt ?? null,
+        lastSuccessAt: observed?.lastSuccessAt ?? null,
+        catalog: { count: tools?.length ?? null, freshness: !tools ? "unknown" : fresh ? "fresh" : "stale",
+          cached: observed?.cached ?? false, fallback: observed?.fallback ?? false },
+        failure: outcome === "unknown" || outcome === "ok" ? null
+          : { category: outcome, reason: observed!.reason!, action },
+      };
+    });
+  }
+
+  async catalogs(): Promise<Tool[][]> {
+    // Every host shares this absolute deadline; existing flights expire earlier.
+    const deadline = Date.now() + DISCOVERY_BUDGET_MS;
+    return Promise.all(this.config.upstreams.map(({ name }) => {
+      const observed = this.observations.get(name);
+      const reusableFor = observed?.outcome === "ok" ? CATALOG_FRESH_MS : DISCOVERY_BUDGET_MS;
+      if (observed && Date.now() - Date.parse(observed.observedAt) < reusableFor) {
+        observed.cached = this.catalog.has(name);
+        return Promise.resolve(this.catalog.get(name) ?? []);
+      }
+      return this.list(name, deadline);
+    }));
+  }
+
+  list(name: string, deadline = Date.now() + DISCOVERY_BUDGET_MS): Promise<Tool[]> {
+    const existing = this.discoveries.get(name);
+    if (existing) return existing.promise;
+    const controller = new AbortController();
+    const flight: Discovery = { controller, promise: Promise.resolve([]) };
+    this.discoveries.set(name, flight);
+    flight.promise = Promise.resolve().then(async () => {
+      let connection: Connection | undefined;
+      const timer = setTimeout(() => controller.abort(new DOMException("Discovery deadline exceeded", "TimeoutError")), Math.max(0, deadline - Date.now()));
+      try {
+        controller.signal.throwIfAborted();
+        if (!readRecord<UpstreamTokens>(this.db, name, "tokens")?.access_token) {
+          throw new UpstreamFailure("sign_in_required", "Upstream sign-in required");
+        }
+        connection = this.connect(name);
+        connection.users++;
+        const signal = AbortSignal.any([controller.signal, connection.controller.signal]);
+        const tools = await this.discover(connection, signal);
+        if (this.discoveries.get(name) !== flight || this.clients.get(name) !== connection) throw new Error("Upstream discovery superseded");
+        const now = new Date(Date.now()).toISOString();
+        this.catalog.set(name, tools);
+        this.observations.set(name, { outcome: "ok", observedAt: now, lastSuccessAt: now, cached: false, fallback: false });
+        return tools;
+      } catch (error) {
+        const timedOut = controller.signal.reason instanceof DOMException && controller.signal.reason.name === "TimeoutError";
+        const failed = failure(timedOut ? controller.signal.reason : error);
+        if (this.discoveries.get(name) === flight && (!connection || !this.clients.has(name) || this.clients.get(name) === connection)) {
+          this.observations.set(name, { outcome: failed.status, observedAt: new Date(Date.now()).toISOString(),
+            lastSuccessAt: this.observations.get(name)?.lastSuccessAt ?? null,
+            cached: this.catalog.has(name), fallback: this.catalog.has(name), reason: failed.reason });
+        }
+        // A discovery deadline must not abort another user's native call or initialization.
+        if (connection && (!timedOut || connection.users === 1)) this.discard(name, connection);
+        console.warn(JSON.stringify({ event: "upstream_catalog", timestamp: new Date().toISOString(),
+          stage: "fallback", upstream_index: this.config.upstreams.findIndex((item) => item.name === name),
+          ...failed, cached: this.catalog.has(name) }));
+        return this.catalog.get(name) ?? [];
+      } finally {
+        clearTimeout(timer);
+        if (connection) await this.release(name, connection);
+        if (this.discoveries.get(name) === flight) this.discoveries.delete(name);
+      }
+    });
+    return flight.promise;
   }
 
   async call(name: string, tool: string, args: Record<string, unknown>) {
