@@ -13,7 +13,7 @@ pnpm run build
 pnpm test
 ```
 
-`tsc-ts` 0.0.2 is the primary compiler for checks and JavaScript emission; esbuild bundles browser code. It is experimental, so compiler changes require verifying emitted runtime behavior as well as diagnostics. Keep platform optional dependencies enabled. Report compiler blockers without silently substituting another compiler.
+`tsc-ts` 0.1.2 is the primary compiler for checks and JavaScript emission; esbuild bundles browser code. It is experimental, so compiler changes require verifying emitted runtime behavior as well as diagnostics. Keep platform optional dependencies enabled. Report compiler blockers without silently substituting another compiler.
 
 The exact dependency versions are intentional. pnpm's `allowBuilds` permits only SQLite and esbuild. The exact-version release-age exceptions for tsc-ts and its platform packages permit installation of the explicitly selected compiler release; they do not approve dependency build scripts. Do not disable supply-chain controls or upgrade unrelated dependencies to resolve a concrete blocker.
 

@@ -201,8 +201,8 @@ importers:
         specifier: 0.25.12
         version: 0.25.12
       tsc-ts:
-        specifier: 0.0.2
-        version: 0.0.2
+        specifier: 0.1.2
+        version: 0.1.2
 
 packages:
 
@@ -492,42 +492,42 @@ packages:
   '@standard-schema/spec@1.1.0':
     resolution: {integrity: sha512-l2aFy5jALhniG5HgqrD6jXLi/rUWrKvqN/qJx6yoJsgKhblVd+iqqU4RCXavm/jPityDo5TCvKMnpjKnOriy0w==}
 
-  '@tsc-ts/darwin-arm64@0.0.2':
-    resolution: {integrity: sha512-RkGySmyRvij4adIw2DeN0hFtqVZd6D+wbiGAsphD7f4AAWezQDD0pDa39K72XI4yuWf6hi3xk7WMYTzwSd3oLw==}
+  '@tsc-ts/darwin-arm64@0.1.2':
+    resolution: {integrity: sha512-0LiP0N/+KXSxK3tQbwdjRJpuuZV7+zuNnVX6IvnxmLcQcCXbKNjAFgIDMWhkEQfJNvi4JYPiH+BgGaxEgMopVg==}
     cpu: [arm64]
     os: [darwin]
 
-  '@tsc-ts/darwin-x64@0.0.2':
-    resolution: {integrity: sha512-9Rvn2ysWS8nodbATIAztOCENJJ52J00TtEP3yzjq3kYuCdHKsprm/H0G98OlYpRDxltFgiWW1W1SnDUjHEAX0g==}
+  '@tsc-ts/darwin-x64@0.1.2':
+    resolution: {integrity: sha512-eLN25oswunE9FkepwGA6c0epTX4zazGlyfkC6cECenybSNkPcuQQNajXdEyw/PQIkubBaDYvn+C8ZjDp3eUSzg==}
     cpu: [x64]
     os: [darwin]
 
-  '@tsc-ts/linux-arm64-gnu@0.0.2':
-    resolution: {integrity: sha512-WlSK+cRpvWqgKdwuBFOwbiBQ2v1ztmq0hlO71PBLWEitPcNpgwq8dYWQFp+0H6+MJ8I5OMl1D0DmyzQArUOuww==}
+  '@tsc-ts/linux-arm64-gnu@0.1.2':
+    resolution: {integrity: sha512-Nn3owMTfOUtG92QwXNjQHq//edOd0NQkAu4Kf0ZA9EohbPlyBH9uw85cNCYfFL/SBI5yoabx0J7u1r18byBzhw==}
     cpu: [arm64]
     os: [linux]
     libc: [glibc]
 
-  '@tsc-ts/linux-arm64-musl@0.0.2':
-    resolution: {integrity: sha512-orV1lOLL4q41kXH6gQClllGmsAFZddx9KlgijfpmhPqjZlg4Ha7YT+WjDPi2Hs9VO6/nQKMaxqXOZdE6JxP/eA==}
+  '@tsc-ts/linux-arm64-musl@0.1.2':
+    resolution: {integrity: sha512-PK/AZ1+fNXuiFIzFTK+hAQg09jaOv14sL8+0LSZHaaw9NiDetTeiR1vK17JceVwINA8E4MUmQaQNEHeacr146g==}
     cpu: [arm64]
     os: [linux]
     libc: [musl]
 
-  '@tsc-ts/linux-x64-gnu@0.0.2':
-    resolution: {integrity: sha512-/+IrlTylDCCTqMtmEvV3pH+jWNnsI7I5+pSFFQj5tMFTYA7ArwROsaygtP6voPZtY6o+jFg6G7gPfxpCLPyYRg==}
+  '@tsc-ts/linux-x64-gnu@0.1.2':
+    resolution: {integrity: sha512-ioCCSh8hrMQHfW+BXGULOsYPeu/LwNsqD+QfMn8HkHTa9xS5OsqvwOblMYYz+0+ygzarKzpA2af3mAzHQy4Mog==}
     cpu: [x64]
     os: [linux]
     libc: [glibc]
 
-  '@tsc-ts/linux-x64-musl@0.0.2':
-    resolution: {integrity: sha512-mkKacIeCPv0lPUTRyhbZV1ZfzDhXZhrsYVsR5q6ZOfTp49L7VKpDcGWLXqCmvhNXFUQy/Gq4+XFwEgF8+NfRNg==}
+  '@tsc-ts/linux-x64-musl@0.1.2':
+    resolution: {integrity: sha512-6gXZUzxwa1LTZ1vCHmIXrtUc3u0VYS0ki8mCIIpOfrkSTHbluTUMAXeHYKTM9+7xtPafhc0d0rD/WPlBm6FkLw==}
     cpu: [x64]
     os: [linux]
     libc: [musl]
 
-  '@tsc-ts/win32-x64-msvc@0.0.2':
-    resolution: {integrity: sha512-Qs/QuhzU9HaVWsuWZo2J964NtGDA9bBQj2m5PagtL1Vn1Lhtpl9xEl55A+/Laop/pTK4KkUvo7DEotT0gy7pcQ==}
+  '@tsc-ts/win32-x64-msvc@0.1.2':
+    resolution: {integrity: sha512-8NCutmffixhwukUaGx58UrZxVgeI4i02aSVEaOaZ/239PDLcqEOtEQKqbpRPGAcGbV8+tusQsIoB3MEGtGGsYw==}
     cpu: [x64]
     os: [win32]
 
@@ -781,10 +781,15 @@ packages:
     resolution: {integrity: sha512-ujeqbceABgwMZxEJnk2HDY2DlnUZ+9oEcb1KzTVfYHio0UE6dG71n60d8D2I4qNvleWrrXpmjpt7vZeF1LnMZQ==}
     engines: {node: '>=6'}
 
-  tsc-ts@0.0.2:
-    resolution: {integrity: sha512-2wk85TpOB6sy4KSV+TA/C4EzI7O9X4RPTipMeqeDEG0+v6h6ubyi0uHeDXcxplKzW9BBy8mLZXiYCevv+KxRbg==}
+  tsc-ts@0.1.2:
+    resolution: {integrity: sha512-PBzZXEqfreWPTeyw9Jk5Jg/PUFoVFQBoDhUudJzutmUtdsA1pG6AJiuwviqYEWC14WQ/Tn9C2vncT2Y9lQWPtw==}
     engines: {node: '>=20'}
     hasBin: true
+    peerDependencies:
+      '@scriptc/threads': 0.4.8
+    peerDependenciesMeta:
+      '@scriptc/threads':
+        optional: true
 
   tunnel-agent@0.6.0:
     resolution: {integrity: sha512-McnNiV1l8RYeY8tBgEpuodCC1mLUdbSN+CYBL7kJsJNInOP8UjDDEwdk6Mw60vdLLrr5NHKZhMAOSrR2NZuQ+w==}
@@ -996,25 +1001,25 @@ snapshots:
 
   '@standard-schema/spec@1.1.0': {}
 
-  '@tsc-ts/darwin-arm64@0.0.2':
+  '@tsc-ts/darwin-arm64@0.1.2':
     optional: true
 
-  '@tsc-ts/darwin-x64@0.0.2':
+  '@tsc-ts/darwin-x64@0.1.2':
     optional: true
 
-  '@tsc-ts/linux-arm64-gnu@0.0.2':
+  '@tsc-ts/linux-arm64-gnu@0.1.2':
     optional: true
 
-  '@tsc-ts/linux-arm64-musl@0.0.2':
+  '@tsc-ts/linux-arm64-musl@0.1.2':
     optional: true
 
-  '@tsc-ts/linux-x64-gnu@0.0.2':
+  '@tsc-ts/linux-x64-gnu@0.1.2':
     optional: true
 
-  '@tsc-ts/linux-x64-musl@0.0.2':
+  '@tsc-ts/linux-x64-musl@0.1.2':
     optional: true
 
-  '@tsc-ts/win32-x64-msvc@0.0.2':
+  '@tsc-ts/win32-x64-msvc@0.1.2':
     optional: true
 
   '@types/better-sqlite3@7.6.13':
@@ -1253,15 +1258,15 @@ snapshots:
       inherits: 2.0.4
       readable-stream: 3.6.2
 
-  tsc-ts@0.0.2:
+  tsc-ts@0.1.2:
     optionalDependencies:
-      '@tsc-ts/darwin-arm64': 0.0.2
-      '@tsc-ts/darwin-x64': 0.0.2
-      '@tsc-ts/linux-arm64-gnu': 0.0.2
-      '@tsc-ts/linux-arm64-musl': 0.0.2
-      '@tsc-ts/linux-x64-gnu': 0.0.2
-      '@tsc-ts/linux-x64-musl': 0.0.2
-      '@tsc-ts/win32-x64-msvc': 0.0.2
+      '@tsc-ts/darwin-arm64': 0.1.2
+      '@tsc-ts/darwin-x64': 0.1.2
+      '@tsc-ts/linux-arm64-gnu': 0.1.2
+      '@tsc-ts/linux-arm64-musl': 0.1.2
+      '@tsc-ts/linux-x64-gnu': 0.1.2
+      '@tsc-ts/linux-x64-musl': 0.1.2
+      '@tsc-ts/win32-x64-msvc': 0.1.2
 
   tunnel-agent@0.6.0:
     dependencies:

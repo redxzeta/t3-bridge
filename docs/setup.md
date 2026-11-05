@@ -6,7 +6,7 @@
 - Git, a browser, and **one** transport: an ngrok account with available endpoint quota, or OpenAI Secure MCP Tunnel access. The private route also needs a stable private IPv4 address, a trusted private CA, and LAN/VPN browser access. Configure credentials locally and keep them out of this repository and chat.
 - Network access from the bridge to each T3 `/mcp` endpoint. Your browser must also reach each T3 authorization page. Enable MCP in each T3 instance and retain its existing permissions.
 
-The primary compiler, tsc-ts 0.0.2, is experimental. Published optional packages cover Linux x64/arm64 (glibc or musl) and macOS x64/arm64. Leave optional dependencies enabled. Unsupported platforms fail explicitly; this project does not build the compiler from source. Node.js is still required to run T3 Bridge.
+The primary compiler, tsc-ts 0.1.2, is experimental. Published optional packages cover Linux x64/arm64 (glibc or musl) and macOS x64/arm64. Leave optional dependencies enabled. Unsupported platforms fail explicitly; this project does not build the compiler from source. Node.js is still required to run T3 Bridge.
 
 SQLite normally uses a prebuilt native addon. If installation falls back to a native build, use the platform's Python 3 and C/C++ build tools (Linux build tools or macOS Xcode Command Line Tools), then retry. Only SQLite and esbuild have dependency build permission. Do not enable all dependency scripts to fix an installation error.
 
