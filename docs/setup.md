@@ -209,6 +209,14 @@ The chosen account must own its local configuration/environment/state and have a
 
 For Proxmox, use an existing Linux guest and its normal console/admin route. Install the same prerequisites and follow this guide inside the guest. Ensure the guest can reach upstreams and the selected transport can reach the configured local/private bridge listener. No LXC creation, firewall changes, or host configuration are automated here.
 
+## Check upstream discovery on demand
+
+Build the current source and run `pnpm run doctor` under the installation's OS account, from its checkout, with the same configuration and state paths. For a direct invocation, use `node --env-file-if-exists=.env dist/main.js doctor`. The command does not require an interactive terminal or the bridge signing secret.
+
+It returns JSON with independent fresh-discovery results for each upstream and a 15-second deadline per upstream. It can refresh an existing grant, so it may write rotated tokens to local state; coordinate with the serving process to avoid concurrent refreshes of the same grant. It never calls tools, registers clients, initiates sign-in, or changes the selected transport. See [diagnostic output and exit codes](../README.md#on-demand-upstream-diagnostics).
+
+An `ok` result proves upstream connection and tool listing for this check. It does not prove T3 approval for an operation, downstream client access, or tunnel delivery. Failed discovery during serving may use cached tools; the diagnostic command never counts that cache as success. Keep the real configuration, state, and any installation-specific results private.
+
 ## Troubleshooting
 
 - **Compiler executable missing:** verify the pinned versions and reinstall with optional dependencies enabled on a supported platform. Do not substitute another compiler silently.

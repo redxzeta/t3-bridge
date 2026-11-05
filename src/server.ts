@@ -149,8 +149,10 @@ export function createBridge(config: BridgeConfig, db: State) {
     listener.closeIdleConnections();
   })));
   async function close() {
-    await closeListeners();
+    const stopped = closeListeners();
     await upstreams.close();
+    for (const listener of listeners) listener.closeAllConnections();
+    await stopped;
   }
   async function start() {
     const listen = (listener: Server, port: number, host: string) => new Promise<void>((resolve, reject) => {

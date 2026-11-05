@@ -12,9 +12,11 @@
   "scripts": {
     "build": "tsc-ts -p tsconfig.json && esbuild src/browser.ts --bundle --format=esm --minify --outfile=dist/browser.js && esbuild src/browser.css --minify --outfile=dist/browser.css",
     "check": "tsc-ts -p tsconfig.json --noEmit",
+    "pretest": "pnpm run build",
     "test": "node --test dist/*.test.js",
     "setup": "node --env-file-if-exists=.env dist/main.js setup",
     "start": "node --env-file-if-exists=.env dist/main.js start",
+    "doctor": "node --env-file-if-exists=.env dist/main.js doctor",
     "link": "node --env-file-if-exists=.env dist/main.js link",
     "rotate-password": "node --env-file-if-exists=.env dist/main.js rotate-password"
   },

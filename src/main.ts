@@ -29,7 +29,7 @@ async function currentPassword(): Promise<string> {
 async function main() {
   const args = process.argv.slice(2).filter((value) => value !== "--");
   const command = args[0] ?? "start";
-  if (!["setup", "start", "link", "rotate-password"].includes(command)) throw new OperatorError("Usage: setup | start | link <instance> | rotate-password");
+  if (!["setup", "start", "link", "rotate-password", "doctor"].includes(command)) throw new OperatorError("Usage: setup | start | link <instance> | rotate-password | doctor");
   if (command === "setup" || command === "rotate-password") requireTerminal();
   const config = loadConfig(process.env.T3_BRIDGE_CONFIG ?? "config.json");
   const directory = process.env.T3_BRIDGE_STATE_DIR ?? "state";
@@ -59,6 +59,15 @@ async function main() {
     return;
   }
   try {
+    if (command === "doctor") {
+      const upstreams = new Upstreams(config, db);
+      try {
+        const results = await upstreams.doctor();
+        console.log(JSON.stringify({ upstreams: results }));
+        process.exitCode = results.every((result) => result.status === "ok") ? 0 : 1;
+      } finally { await upstreams.close(); }
+      return;
+    }
     if (command === "link") {
       if (!args[1]) throw new OperatorError("Usage: pnpm run link -- <instance>");
       console.log((await new Upstreams(config, db).startAuthorization(args[1])).href);
@@ -78,6 +87,11 @@ async function main() {
 }
 
 main().catch((error: unknown) => {
+  if (process.argv.slice(2).filter((value) => value !== "--")[0] === "doctor") {
+    console.log(JSON.stringify({ status: "error", reason: "Bridge configuration or startup failed" }));
+    process.exitCode = 2;
+    return;
+  }
   console.error(error instanceof OperatorError || error instanceof TlsConfigurationError ? error.message : "T3 Bridge command failed. Check configuration, initialization, and upstream availability; keep local diagnostics private.");
   process.exitCode = 1;
 });
