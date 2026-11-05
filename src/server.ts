@@ -50,8 +50,18 @@ export function createBridge(config: BridgeConfig, db: State) {
     // The SDK default is process-wide and retains each freshly fetched schema.
     const inputValidator = new AjvJsonSchemaValidator();
     const server = new McpServer({ name: "t3-bridge", version: "0.1.0" });
-    for (const upstream of config.upstreams) {
-      for (const tool of await upstreams.list(upstream.name)) {
+    server.registerTool("bridge_status", {
+      description: "The bridge's observed upstream connection and catalog state. Cached data is not reachability, permission, or completed work. No native tool calls or repairs.",
+      inputSchema: fromJsonSchema({ type: "object", properties: {}, additionalProperties: false }, inputValidator),
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+      _meta: { securitySchemes: [{ type: "oauth2", scopes: ["mcp:tools", "offline_access"] }] },
+    }, async () => {
+      const snapshot = { upstreams: upstreams.status() };
+      return { content: [{ type: "text" as const, text: JSON.stringify(snapshot) }], structuredContent: snapshot };
+    });
+    const catalogs = await upstreams.catalogs();
+    for (const [index, upstream] of config.upstreams.entries()) {
+      for (const tool of catalogs[index]!) {
         server.registerTool(friendlyName(upstream.name, tool), {
           description: tool.description ?? `${upstream.name}: ${tool.name}`,
           inputSchema: fromJsonSchema(tool.inputSchema as Parameters<typeof fromJsonSchema>[0], inputValidator),

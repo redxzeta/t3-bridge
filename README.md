@@ -38,6 +38,12 @@ For ChatGPT setup, explicitly request `offline_access` in **Base scopes** when t
 
 Agents can use the repository's [setup skill](.agents/skills/t3-bridge-setup/SKILL.md), [connection diagnosis skill](.agents/skills/t3-bridge-diagnose/SKILL.md), and [publication skill](.agents/skills/t3-bridge-publish/SKILL.md). [AGENTS.md](AGENTS.md) describes repository conventions and operational boundaries.
 
+## Bridge status and partial outages
+
+The OAuth-protected, read-only `bridge_status` MCP tool reports only this bridge's observed connection/discovery state, timestamps, catalog freshness/cache fallback, and sanitized failure categories. It never invokes native T3 tools or repairs an upstream. Unknown and cached data are explicit; discovery success does not establish permission or completed work.
+
+Serving discovers hosts concurrently within a shared five-second budget. Requests share in-flight discovery; successful catalogs can be reused for 30 seconds and failures for five seconds without polling. A hung host cannot suppress a healthy host's prefixed tools or the local status tool. These discovery deadlines do not limit native tool-call duration. See [behavior, boundaries, and source comparisons](docs/setup.md#bridge-status-and-partial-outages).
+
 ## On-demand upstream diagnostics
 
 After building, run `pnpm run doctor` from the same checkout and OS account as the bridge. It uses `.env`, `T3_BRIDGE_CONFIG` (default `config.json`), and `T3_BRIDGE_STATE_DIR` (default `state`). It needs no bridge signing secret and does not start an HTTP listener.

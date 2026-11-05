@@ -1,11 +1,13 @@
 import { createServer } from "node:http";
 import { createHash } from "node:crypto";
+import type { Tool } from "@modelcontextprotocol/server";
 
 // Disposable protocol fixture: never contacts a configured T3 installation.
 export async function mockUpstream(name: string) {
   const calls: unknown[] = [];
-  const fixture = { paginate: false, listGate: undefined as Promise<void> | undefined, onList: undefined as (() => void) | undefined, callGate: undefined as ((args: Record<string, unknown>) => Promise<void>) | undefined, dropMessage: undefined as string | undefined, initializes: 0, initializeGate: undefined as Promise<void> | undefined, onInitialize: undefined as (() => void) | undefined, challenge: "", refreshFails: false, permissionDenied: false, registrations: 0, exchanges: 0, refreshes: 0, dropResponse: false, exchangeGate: undefined as Promise<void> | undefined, refreshGate: undefined as Promise<void> | undefined, onExchange: undefined as (() => void) | undefined, onRefresh: undefined as (() => void) | undefined };
+  const fixture = { tools: undefined as Tool[] | undefined, unavailable: false, requests: 0, lists: 0, paginate: false, listGate: undefined as Promise<void> | undefined, onList: undefined as (() => void) | undefined, callGate: undefined as ((args: Record<string, unknown>) => Promise<void>) | undefined, dropMessage: undefined as string | undefined, initializes: 0, initializeGate: undefined as Promise<void> | undefined, onInitialize: undefined as (() => void) | undefined, challenge: "", refreshFails: false, permissionDenied: false, registrations: 0, exchanges: 0, refreshes: 0, dropResponse: false, exchangeGate: undefined as Promise<void> | undefined, refreshGate: undefined as Promise<void> | undefined, onExchange: undefined as (() => void) | undefined, onRefresh: undefined as (() => void) | undefined };
   const server = createServer(async (req, res) => {
+    fixture.requests++;
     const json = (status: number, value: unknown) => res.writeHead(status, { "content-type": "application/json" }).end(JSON.stringify(value));
     let text = "";
     for await (const chunk of req) text += chunk;
@@ -30,6 +32,7 @@ export async function mockUpstream(name: string) {
       return void json(200, { access_token: `${name}-access`, refresh_token: `${name}-refresh`, expires_in: 3600 });
     }
     if (req.url !== "/mcp") return void json(404, {});
+    if (fixture.unavailable) return void json(503, { error: "synthetic-upstream-private-payload" });
     if (req.method !== "POST") { res.writeHead(405).end(); return; }
     if (![`${name}-access`, `${name}-fresh`].some((token) => req.headers.authorization === `Bearer ${token}`)) return void json(401, {});
     const body = JSON.parse(text);
@@ -38,9 +41,10 @@ export async function mockUpstream(name: string) {
     if (body.method === "initialize") { fixture.initializes++; fixture.onInitialize?.(); await fixture.initializeGate; }
     if (body.method === "initialize") result = { protocolVersion: body.params.protocolVersion, capabilities: { tools: {} }, serverInfo: { name, version: "0.0.0" } };
     if (body.method === "tools/list") {
-      fixture.onList?.(); await fixture.listGate;
+      fixture.lists++; fixture.onList?.(); await fixture.listGate;
     }
     if (body.method === "tools/list") result = { tools: [{ name: "echo", description: "Synthetic echo", inputSchema: { type: "object", properties: { message: { type: "string" } }, required: ["message"] }, annotations: { readOnlyHint: true } }] };
+    if (body.method === "tools/list" && fixture.tools) result = { tools: fixture.tools };
     if (body.method === "tools/list" && fixture.paginate && !body.params?.cursor) result = { ...(result as object), nextCursor: "second" };
     if (body.method === "tools/call") {
       calls.push(body.params);

@@ -217,6 +217,24 @@ It returns JSON with independent fresh-discovery results for each upstream and a
 
 An `ok` result proves upstream connection and tool listing for this check. It does not prove T3 approval for an operation, downstream client access, or tunnel delivery. Failed discovery during serving may use cached tools; the diagnostic command never counts that cache as success. Keep the real configuration, state, and any installation-specific results private.
 
+## Bridge status and partial outages
+
+`bridge_status` is a local read-only MCP tool under the same OAuth protection and `mcp:tools` scope as forwarded tools. Its result contains configured names, the last observed discovery outcome, observation/last-success timestamps, catalog count/freshness/cache/fallback flags, and sanitized failure reasons with manual next actions. `connection` describes whether an initialized SDK client is retained, not a physical-network liveness guarantee. No URLs, grants, payloads, native tool results, or thread/work state are included.
+
+State is in memory and starts `unknown` after restart. Catalog discovery runs concurrently when a serving request needs it, sharing one flight per upstream. After OAuth authentication, the handler's upstream discovery phase has a five-second overall budget, independent of host count; authentication, local scheduling and protocol overhead are separate. Successful catalog observations can be reused for 30 seconds, recent failures for five seconds. There is no polling or background refresh. A cached catalog, even within that freshness interval, is not evidence of current reachability. An expired or fallback catalog is `stale`; its original last-success timestamp remains visible. Sign-in failures remain distinct from availability/error outcomes, including when cached tools exist.
+
+The local status callback reads this shared observation state without a separate probe or OAuth-refresh flow. Handler construction may run the same bounded discovery used for other requests. With every host unavailable, the local status tool still registers and can be called after that bounded phase. Discovery cancellation does not cancel unrelated native calls, and no new deadline is imposed on their execution. Existing SDK/transport timeouts still apply. Superseded discovery cannot publish over a replacement authorization or catalog.
+
+T3 owns projects, threads, routing IDs, worktrees, permissions, queues, stopping, and PR watches. The bridge only prefixes/routes tools and reports its own observations; it does not adopt work or add a job engine, retry ledger, scheduler, or approval mechanism. Native arguments/results, including `clientRequestId`, pass through unchanged. An uncertain mutation is not automatically replayed or rerouted. The inspected native launch/send schemas expose `clientRequestId`; the launch implementation binds it to the caller's request namespace. This is not a guarantee across changed authorization identities. Follow the actual installed native contract when an explicit retry is appropriate.
+
+### Compared source and provenance
+
+This implementation uses independently written local code, inspired only by the small patterns below. Both reference licenses were inspected (MIT); no third-party source or assets were copied, and no job, dashboard, private-session, notification, or polling system was imported.
+
+- [boundsj/t3-fleet-gateway, revision 23a87a0](https://github.com/boundsj/t3-fleet-gateway/tree/23a87a0e7d02e2f89ef93fc16149f0eb691f98b7): inspected `src/mcp/fleetStatus.ts`, `src/hosts/reachability.ts`, and `LICENSE`; compared explicit diagnostic observations and failure isolation, without its reachability loop or orchestration engine.
+- [scratchyone/t3-code-mcp, revision ac0cfbb](https://github.com/scratchyone/t3-code-mcp/tree/ac0cfbb32e21c67e0281ad63a381e4211601c7ca): inspected `server.mjs` fan-out and `LICENSE`; compared the behavior that an unavailable machine does not discard healthy results, without its native-session or event implementation.
+- [Native T3 PR #16654](https://github.com/pingdotgg/t3code/pull/16654), compared at [head d21f48d](https://github.com/pingdotgg/t3code/tree/d21f48dcc45de112ccac25f6f6fccf892630880c): inspected launch tools/handlers and `packages/contracts/src/orchestratorMcp.ts`, alongside the available native launch/send schemas. The source derives launch identity from `scope.requestNamespace` and the key. This source comparison does not identify or verify any deployed native revision, grant, or runtime outcome.
+
 ## Troubleshooting
 
 - **Compiler executable missing:** verify the pinned versions and reinstall with optional dependencies enabled on a supported platform. Do not substitute another compiler silently.

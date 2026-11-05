@@ -54,7 +54,7 @@ test("authenticated MCP prefixes and routes two upstreams, preserving approval e
       fetch: globalThis.fetch, requestInit: { headers: { authorization: `Bearer ${token}` } },
     }));
     const tools = (await client.listTools()).tools;
-    assert.deepEqual(tools.map((tool) => tool.name).sort(), ["home__echo", "lab__echo"]);
+    assert.deepEqual(tools.map((tool) => tool.name).sort(), ["bridge_status", "home__echo", "lab__echo"]);
     for (const tool of tools) {
       assert.deepEqual(tool._meta?.securitySchemes, [{ type: "oauth2", scopes: ["mcp:tools", "offline_access"] }], "every tool must request renewable authorization");
     }
