@@ -151,8 +151,9 @@ export function createBridge(config: BridgeConfig, db: State) {
   async function close() {
     const stopped = closeListeners();
     await upstreams.close();
-    for (const listener of listeners) listener.closeAllConnections();
     await stopped;
+    // Requests already past authentication may have opened clients while draining.
+    await upstreams.close();
   }
   async function start() {
     const listen = (listener: Server, port: number, host: string) => new Promise<void>((resolve, reject) => {
