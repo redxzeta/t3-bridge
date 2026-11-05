@@ -38,6 +38,22 @@ For ChatGPT setup, explicitly request `offline_access` in **Base scopes** when t
 
 Agents can use the repository's [setup skill](.agents/skills/t3-bridge-setup/SKILL.md), [connection diagnosis skill](.agents/skills/t3-bridge-diagnose/SKILL.md), and [publication skill](.agents/skills/t3-bridge-publish/SKILL.md). [AGENTS.md](AGENTS.md) describes repository conventions and operational boundaries.
 
+## On-demand upstream diagnostics
+
+After building, run `pnpm run doctor` from the same checkout and OS account as the bridge. It uses `.env`, `T3_BRIDGE_CONFIG` (default `config.json`), and `T3_BRIDGE_STATE_DIR` (default `state`). It needs no bridge signing secret and does not start an HTTP listener.
+
+The command connects to each configured upstream and lists tools with a 15-second deadline per upstream. It never invokes tools, starts sign-in, registers an OAuth client, or treats cached tools as success. Existing OAuth grants may be refreshed and rotated tokens saved. Refresh coordination is per process; avoid running diagnostics concurrently with a serving process when both would refresh the same grant.
+
+Stdout contains one JSON object, for example:
+
+```json
+{"upstreams":[{"name":"home","status":"ok","toolCount":12},{"name":"lab","status":"sign_in_required","reason":"Upstream sign-in required"}]}
+```
+
+Statuses are `ok`, `sign_in_required`, `unavailable`, and `error`. Successful checks include `toolCount`; failures include a sanitized `reason`. Exit codes are `0` when all upstreams succeed, `1` for upstream failures, and `2` for configuration or startup errors. Startup errors emit `{"status":"error","reason":"Bridge configuration or startup failed"}`. Results exclude tokens, URLs, tool arguments, and upstream response bodies.
+
+A running bridge or tunnel does not prove upstream discovery, downstream OAuth renewal, or an end-to-end tool call. Normal serving retains cached tools during discovery failures; its fallback log records the failure category and whether a cache was available. Diagnostics introduce no service or schedule.
+
 ## Development
 
 ```sh
@@ -46,6 +62,8 @@ pnpm run check
 pnpm run build
 pnpm test
 ```
+
+`pnpm test` builds the current sources before running tests.
 
 CI runs the pinned Linux validation, production dependency audit, and a separate full-history redacted secret scan. It never deploys or publishes packages. Tests use synthetic accounts, disposable state, and local mock upstreams. See [CONTRIBUTING.md](CONTRIBUTING.md) for publication checks and [SECURITY.md](SECURITY.md) for private vulnerability reporting.
 

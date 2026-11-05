@@ -179,3 +179,53 @@ test("HTTP adapter preserves separate browser cookies through downstream OAuth l
     db.close(); rmSync(root, { recursive: true });
   }
 });
+
+test("shutdown drains an in-flight OAuth callback before its database can close", { timeout: 5000 }, async () => {
+  const { get } = await import("node:http");
+  const { createAuth } = await import("./auth.js");
+  const { readRecord } = await import("./state.js");
+  const root = mkdtempSync(join(tmpdir(), "t3-bridge-callback-stop-"));
+  const mock = await mockUpstream("home");
+  const db = openState(root);
+  const previousSecret = process.env.BETTER_AUTH_SECRET;
+  process.env.BETTER_AUTH_SECRET = "synthetic-callback-stop-secret-12345678901234567890";
+  const config = { publicUrl: "https://bridge.example.com", listenPort: 0, ownerEmail: "owner@example.com", upstreams: [{ name: "home", url: mock.url }] };
+  const initializer = createAuth(config, db, { setup: true });
+  await (await getMigrations(initializer.options)).runMigrations();
+  const bridge = createBridge(config, db);
+  let release!: () => void, entered!: () => void, databaseClosed = false;
+  mock.fixture.exchangeGate = new Promise<void>((resolve) => { release = resolve; });
+  const started = new Promise<void>((resolve) => { entered = resolve; });
+  mock.fixture.onExchange = entered;
+  try {
+    await bridge.start();
+    const link = await bridge.upstreams.startAuthorization("home");
+    mock.fixture.challenge = link.searchParams.get("code_challenge")!;
+    const params = new URLSearchParams({ code: "synthetic-code", state: link.searchParams.get("state")!, iss: new URL(mock.url).origin });
+    const address = bridge.server.address();
+    assert.ok(address && typeof address !== "string");
+    const response = new Promise<number | null>((resolve) => {
+      const request = get({ hostname: "127.0.0.1", port: address.port, path: `/upstream/callback/home?${params}`, headers: { host: "bridge.example.com", connection: "close" } }, (res) => {
+        res.resume(); res.on("end", () => resolve(res.statusCode ?? null));
+      });
+      request.on("error", () => resolve(null));
+    });
+    await Promise.race([started, response.then(() => { throw new Error("Callback ended before token exchange"); })]);
+    let stopped = false;
+    const stopping = bridge.close().then(() => { stopped = true; db.close(); databaseClosed = true; });
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    const waitedForExchange = !stopped;
+    release();
+    await stopping;
+    assert.equal(waitedForExchange, true, "listener shutdown must drain the active callback");
+    assert.equal(await response, 200);
+    const reopened = openState(root);
+    try { assert.equal(readRecord<{ access_token: string }>(reopened, "home", "tokens")?.access_token, "home-access"); }
+    finally { reopened.close(); }
+  } finally {
+    release(); await bridge.close(); if (!databaseClosed) db.close();
+    if (previousSecret === undefined) delete process.env.BETTER_AUTH_SECRET;
+    else process.env.BETTER_AUTH_SECRET = previousSecret;
+    await mock.close(); rmSync(root, { recursive: true });
+  }
+});

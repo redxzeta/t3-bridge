@@ -149,7 +149,10 @@ export function createBridge(config: BridgeConfig, db: State) {
     listener.closeIdleConnections();
   })));
   async function close() {
-    await closeListeners();
+    const stopped = closeListeners();
+    await upstreams.close();
+    await stopped;
+    // Requests already past authentication may have opened clients while draining.
     await upstreams.close();
   }
   async function start() {
